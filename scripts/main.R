@@ -37,7 +37,7 @@ rm(QTL_map)
 founderPop = newPop(founderGenomes)
 founderPop@id = add_prefix(founderPop, "A")
 year = 0
-rec_data("01_simulations/pedigree.txt", founderPop, 
+rec_data("01_genotypes/pedigree.txt", founderPop, 
          "Founder", year, append = FALSE)
 
 cat("\nWriting PLINK file for founder_sample_100\n")
@@ -46,7 +46,7 @@ writePlink(founder_sample_100, "01_genotypes/founder_sample_100")
 
 cat("\nWriting founder_phased\n")
 founder_phased = getPhasedHaplo(founder_sample_100)
-write.table(founder_phased, "01_simulations/founder_phased.txt", 
+write.table(founder_phased, "01_genotypes/founder_phased.txt", 
             quote = F, col.names = F)
 
 cat("\nWriting founder QTLs\n")
@@ -67,7 +67,7 @@ expandedPop = randCross(
 rm(founderPop)
 expandedPop@id = add_prefix(expandedPop, "B")
 year = year + 1
-rec_data("01_simulations/pedigree.txt", expandedPop, 
+rec_data("01_genotypes/pedigree.txt", expandedPop, 
          "Expanded", year, append = TRUE)
 
 cli_progress_bar("Expanding population", total = 10)
@@ -80,7 +80,7 @@ for (gen in 1:100) {
     )
     expandedPop@id = add_prefix(expandedPop, "B")
     year = year + 1
-    rec_data("01_simulations/pedigree.txt", expandedPop, 
+    rec_data("01_genotypes/pedigree.txt", expandedPop, 
              "Expanded", year, append = TRUE)
     cli_progress_update()
 } # 115335 individuals in the final generation (11)
@@ -93,7 +93,7 @@ writePlink(expanded_sample_100, "01_genotypes/expanded_sample_100")
 
 cat("\nWriting expanded_phased\n")
 expanded_phased = getPhasedHaplo(expanded_sample_100)
-write.table(expanded_phased, "01_simulations/expanded_phased.txt", 
+write.table(expanded_phased, "01_genotypes/expanded_phased.txt", 
             quote = F, col.names = F)
 
 cat("\nWriting expanded QTLs\n")
@@ -112,7 +112,7 @@ recentPop = makeRecentPop(previous_pop = expandedPop,
                      year = year,
                      years_of_breeding = 19,
                      addPrefix = "C",
-                     rec_data_param = list("01_simulations/pedigree.txt",
+                     rec_data_param = list("01_genotypes/pedigree.txt",
                                            "RecentA",
                                            TRUE))
 recentPop = recentPop[[1]]
@@ -127,7 +127,7 @@ writePlink(recentPop_sample_100, "01_genotypes/recent_sample_100")
 cat("\nWriting recent_phased\n")
 recentPop_sample_10 = selectInd(recentPop, nInd = 10, use = "rand")
 recentPop_phased = getPhasedHaplo(recentPop_sample_100)
-write.table(recentPop_phased, "01_simulations/recent_phased.txt", 
+write.table(recentPop_phased, "01_genotypes/recent_phased.txt", 
             quote = F, col.names = F)
 
 cat("\nWriting Pop A QTLs\n")
