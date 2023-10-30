@@ -17,7 +17,7 @@ RUN pip install pandas==2.0.3
 RUN apt-get install nano -y
 RUN mv /usr/bin/plink1.9 /usr/bin/plink
 
-ADD scripts/ /home/scripts/
+ADD scripts/ /home/
 
 RUN /usr/local/bin/R --no-restore --file=R_packages.R > R_packages.txt
 RUN chmod 755 run_pipeline.sh
