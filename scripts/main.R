@@ -3,7 +3,7 @@ library(AlphaSimR)
 library(cli)
 source("scripts/AlphaSimR_addOn.R")
 
-geno_path = "../01_genotypes/"
+geno_path = "01_genotypes/"
 
 cli_h1("\nInitiating data simulation\n")
 
@@ -56,7 +56,7 @@ writePlink(founder_sample_100,paste0(geno_path,"founder_QTL"), useQtl = TRUE)
 
 rm(founderGenomes,founder_sample_100,founder_phased)
 
-# ---- Expand for 100 generations ----
+# ---- Expand population ----
 
 cli_h2("\nExpanding founder population.\n")
 
@@ -72,8 +72,8 @@ year = year + 1
 rec_data(paste0(geno_path,"pedigree.txt"), expandedPop, 
          "Expanded", year, append = TRUE)
 
-cli_progress_bar("Expanding population", total = 50)
-for (gen in 1:50) {
+cli_progress_bar("Expanding population", total = 80)
+for (gen in 1:80) {
     nCrosses = round(nCrosses*1.05)
     expandedPop = randCross(
         pop = expandedPop,
@@ -112,7 +112,7 @@ recentPop = makeRecentPop(previous_pop = expandedPop,
                      females_each_year = c(5000,2500,1500,750,250), 
                      nCrosses = 10000, 
                      year = year,
-                     years_of_breeding = 19,
+                     years_of_breeding = 30,
                      addPrefix = "C",
                      rec_data_param = list(paste0(geno_path,"pedigree.txt"),
                                            "RecentA",
@@ -120,13 +120,13 @@ recentPop = makeRecentPop(previous_pop = expandedPop,
 recentPop = recentPop[[1]]
 
 # Fit RR-BLUP model for genomic predictions
+cli_alert_info("\nCalculating and writing EBVs\n")
 ans = RRBLUP(recentPop, simParam=SP)
 recentPop = setEBV(recentPop, ans, simParam=SP)
 
-cli_alert_info("\nCalculating and writing EBVs\n")
-BLUP = data.frame(ID = pop@id, 
-                  EBV = pop@ebv, 
-                  GV = pop@gv)
+BLUP = data.frame(ID = recentPop@id, 
+                  EBV = recentPop@ebv, 
+                  GV = recentPop@gv)
 names(BLUP) = c('ID','EBV','GV')
 
 write.table(BLUP,"BLUP_AlphaSimR.txt", row.names = F, quote = F)
