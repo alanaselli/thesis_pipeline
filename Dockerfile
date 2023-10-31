@@ -19,7 +19,7 @@ RUN mv /usr/bin/plink1.9 /usr/bin/plink
 
 ADD scripts/ /home/scripts/
 
-RUN /usr/local/bin/R --no-restore --file=R_packages.R > R_packages.txt
-RUN chmod 755 run_pipeline.sh
+RUN /usr/local/bin/R --no-restore --file=scripts/R_packages.R > scripts/R_packages.txt
+RUN chmod 755 scripts/run_pipeline.sh
 
 CMD /bin/bash

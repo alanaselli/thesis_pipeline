@@ -1,7 +1,9 @@
 library(sys)
 library(AlphaSimR)
 library(cli)
-source("AlphaSimR_addOn.R")
+source("scripts/AlphaSimR_addOn.R")
+
+geno_path = "../01_genotypes/"
 
 cli_h1("\nInitiating data simulation\n")
 
@@ -26,31 +28,31 @@ SP$addTraitA(nQtlPerChr = c(30, 15, 5, 0), mean = 0, var = 1)
 SP$setVarE(h2 = 0.3)
 
 # Save QTL effects
-write.table(paste(SP$traits), "01_genotypes/QTL_effects.txt")
+write.table(paste(SP$traits), paste0(geno_path,"QTL_effects.txt"))
 
 # Save QTL map
 QTL_map = getQtlMap(trait = 1, sex = "A")
-write.csv(QTL_map, "01_genotypes/QTL_map.csv", row.names = F, quote = F)
+write.csv(QTL_map, paste0(geno_path,"QTL_map.csv"), row.names = F, quote = F)
 rm(QTL_map)
 
 # ---- Generate initial populations ----
 founderPop = newPop(founderGenomes)
 founderPop@id = add_prefix(founderPop, "A")
 year = 0
-rec_data("01_genotypes/pedigree.txt", founderPop, 
+rec_data(paste0(geno_path,"pedigree.txt"), founderPop, 
          "Founder", year, append = FALSE)
 
 cli_alert_info("\nWriting PLINK file for founder_sample_100\n")
 founder_sample_100 = selectInd(founderPop, nInd = 100, use = "rand")
-writePlink(founder_sample_100, "01_genotypes/founder_sample_100")
+writePlink(founder_sample_100, paste0(geno_path,"founder_sample_100"))
 
 cli_alert_info("\nWriting founder_phased\n")
 founder_phased = getPhasedHaplo(founder_sample_100)
-write.table(founder_phased, "01_genotypes/founder_phased.txt", 
+write.table(founder_phased,paste0(geno_path,"founder_phased.txt"), 
             quote = F, col.names = F)
 
 cli_alert_info("\nWriting founder QTLs\n")
-writePlink(founder_sample_100, "01_genotypes/founder_QTL", useQtl = TRUE)
+writePlink(founder_sample_100,paste0(geno_path,"founder_QTL"), useQtl = TRUE)
 
 rm(founderGenomes,founder_sample_100,founder_phased)
 
@@ -67,7 +69,7 @@ expandedPop = randCross(
 rm(founderPop)
 expandedPop@id = add_prefix(expandedPop, "B")
 year = year + 1
-rec_data("01_genotypes/pedigree.txt", expandedPop, 
+rec_data(paste0(geno_path,"pedigree.txt"), expandedPop, 
          "Expanded", year, append = TRUE)
 
 cli_progress_bar("Expanding population", total = 50)
@@ -80,7 +82,7 @@ for (gen in 1:50) {
     )
     expandedPop@id = add_prefix(expandedPop, "B")
     year = year + 1
-    rec_data("01_genotypes/pedigree.txt", expandedPop, 
+    rec_data(paste0(geno_path,"pedigree.txt"), expandedPop, 
              "Expanded", year, append = TRUE)
     cli_progress_update()
 } # 115335 individuals in the final generation (11)
@@ -89,15 +91,15 @@ cli_alert_info(paste0("\n",expandedPop@nInd,
 
 cli_alert_info("\nWriting PLINK file for expanded_sample_100\n")
 expanded_sample_100 = selectInd(expandedPop, nInd = 100, use = "rand")
-writePlink(expanded_sample_100, "01_genotypes/expanded_sample_100")
+writePlink(expanded_sample_100, paste0(geno_path,"expanded_sample_100"))
 
 cli_alert_info("\nWriting expanded_phased\n")
 expanded_phased = getPhasedHaplo(expanded_sample_100)
-write.table(expanded_phased, "01_genotypes/expanded_phased.txt", 
+write.table(expanded_phased, paste0(geno_path,"expanded_phased.txt"), 
             quote = F, col.names = F)
 
 cli_alert_info("\nWriting expanded QTLs\n")
-writePlink(expanded_sample_100, "01_genotypes/expanded_QTL", useQtl = TRUE)
+writePlink(expanded_sample_100, paste0(geno_path,"expanded_QTL"), useQtl = TRUE)
 
 rm(expanded_sample_100, expanded_phased)
 
@@ -112,7 +114,7 @@ recentPop = makeRecentPop(previous_pop = expandedPop,
                      year = year,
                      years_of_breeding = 19,
                      addPrefix = "C",
-                     rec_data_param = list("01_genotypes/pedigree.txt",
+                     rec_data_param = list(paste0(geno_path,"pedigree.txt"),
                                            "RecentA",
                                            TRUE))
 recentPop = recentPop[[1]]
@@ -130,19 +132,19 @@ names(BLUP) = c('ID','EBV','GV')
 write.table(BLUP,"BLUP_AlphaSimR.txt", row.names = F, quote = F)
 
 cli_alert_info("\nWriting PLINK file for recent\n")
-writePlink(recentPop, "01_genotypes/recent")
+writePlink(recentPop, paste0(geno_path,"recent"))
 
 cli_alert_info("\nWriting PLINK file for recent_sample_100\n")
 recentPop_sample_100 = selectInd(recentPop, nInd = 100, use = "rand")
-writePlink(recentPop_sample_100, "01_genotypes/recent_sample_100")
+writePlink(recentPop_sample_100, paste0(geno_path,"recent_sample_100"))
 
 cli_alert_info("\nWriting recent_phased\n")
 recentPop_phased = getPhasedHaplo(recentPop_sample_100)
-write.table(recentPop_phased, "01_genotypes/recent_phased.txt", 
+write.table(recentPop_phased, paste0(geno_path,"recent_phased.txt"), 
             quote = F, col.names = F)
 
 cli_alert_info("\nWriting Pop A QTLs\n")
-writePlink(recentPop_sample_100, "01_genotypes/recent_QTL", useQtl = TRUE)
+writePlink(recentPop_sample_100, paste0(geno_path,"recent_QTL"), useQtl = TRUE)
 
 rm(recentPop_sample_100, recentPop_phased)
 
