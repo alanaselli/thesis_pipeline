@@ -85,7 +85,7 @@ for (gen in 1:80) {
     rec_data(paste0(geno_path,"pedigree.txt"), expandedPop, 
              "Expanded", year, append = TRUE)
     cli_progress_update()
-} # 115335 individuals in the final generation (11)
+}
 cli_alert_info(paste0("\n",expandedPop@nInd, 
                       " individuals in the last expansion generation.\n"))
 
