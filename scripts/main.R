@@ -46,15 +46,10 @@ cli_alert_info("\nWriting PLINK file for founder_sample_100\n")
 founder_sample_100 = selectInd(founderPop, nInd = 100, use = "rand")
 writePlink(founder_sample_100, paste0(geno_path,"founder_sample_100"))
 
-cli_alert_info("\nWriting founder_phased\n")
-founder_phased = getPhasedHaplo(founder_sample_100)
-write.table(founder_phased,paste0(geno_path,"founder_phased.txt"), 
-            quote = F, col.names = F)
-
 cli_alert_info("\nWriting founder QTLs\n")
 writePlink(founder_sample_100,paste0(geno_path,"founder_QTL"), useQtl = TRUE)
 
-rm(founderGenomes,founder_sample_100,founder_phased)
+rm(founderGenomes,founder_sample_100)
 
 # ---- Expand population ----
 
@@ -93,15 +88,10 @@ cli_alert_info("\nWriting PLINK file for expanded_sample_100\n")
 expanded_sample_100 = selectInd(expandedPop, nInd = 100, use = "rand")
 writePlink(expanded_sample_100, paste0(geno_path,"expanded_sample_100"))
 
-cli_alert_info("\nWriting expanded_phased\n")
-expanded_phased = getPhasedHaplo(expanded_sample_100)
-write.table(expanded_phased, paste0(geno_path,"expanded_phased.txt"), 
-            quote = F, col.names = F)
-
 cli_alert_info("\nWriting expanded QTLs\n")
 writePlink(expanded_sample_100, paste0(geno_path,"expanded_QTL"), useQtl = TRUE)
 
-rm(expanded_sample_100, expanded_phased)
+rm(expanded_sample_100)
 
 # ---- Recent Population ----
 
@@ -119,17 +109,22 @@ recentPop = makeRecentPop(previous_pop = expandedPop,
                                            TRUE))
 recentPop = recentPop[[1]]
 
+# Record data for BLUPF90
+rec_data("05_BLUPF90/pedigree.txt", recentPop, "Recent", year, append = FALSE)
+
 # Fit RR-BLUP model for genomic predictions
-cli_alert_info("\nCalculating and writing EBVs\n")
+cli_alert_info("\nCalculating EBVs with internal algorithm\n")
 ans = RRBLUP(recentPop, simParam=SP)
 recentPop = setEBV(recentPop, ans, simParam=SP)
 
 BLUP = data.frame(ID = recentPop@id, 
+                  sex = recentPop@sex,
+                  pheno = recentPop@pheno,
                   EBV = recentPop@ebv, 
                   GV = recentPop@gv)
-names(BLUP) = c('ID','EBV','GV')
+names(BLUP) = c('ID','sex','pheno','EBV','GV')
 
-write.table(BLUP,"BLUP_AlphaSimR.txt", row.names = F, quote = F)
+#write.table(BLUP,"BLUP_AlphaSimR.txt", row.names = F, quote = F)
 
 cli_alert_info("\nWriting PLINK file for recent\n")
 writePlink(recentPop, paste0(geno_path,"recent"))
@@ -138,14 +133,14 @@ cli_alert_info("\nWriting PLINK file for recent_sample_100\n")
 recentPop_sample_100 = selectInd(recentPop, nInd = 100, use = "rand")
 writePlink(recentPop_sample_100, paste0(geno_path,"recent_sample_100"))
 
-cli_alert_info("\nWriting recent_phased\n")
-recentPop_phased = getPhasedHaplo(recentPop_sample_100)
-write.table(recentPop_phased, paste0(geno_path,"recent_phased.txt"), 
-            quote = F, col.names = F)
-
 cli_alert_info("\nWriting Pop A QTLs\n")
 writePlink(recentPop_sample_100, paste0(geno_path,"recent_QTL"), useQtl = TRUE)
 
-rm(recentPop_sample_100, recentPop_phased)
+rm(recentPop_sample_100)
 
-cli_alert_success("\nSimulation completed.\n")
+cli_alert_success("\nMain simulation completed.\n")
+
+# ---- Start new selection process ----
+
+# Run BLUPF90
+runBLUPF90() # This function is very specific to my data

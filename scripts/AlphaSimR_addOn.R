@@ -426,3 +426,112 @@ crossPops = function(
   
   return(crossed_pop)
 }
+
+# ---- runBLUPF90 ----
+runBLUPF90 = function(){
+  
+  # Prepare files for RENUMF90
+  cli_alert_info("\nInitiating data preparation for BLUPF90.\n")
+  extract_ped = paste0("05_BLUPF90/extract_ped.sh ",
+                       "01_genotypes/pedigree.txt ",
+                       "05_BLUPF90/dat1.txt ",
+                       "05_BLUPF90/ped1.txt")
+  
+  prepare_snp_file = paste0("05_BLUPF90/prepare_snp_file.sh ",
+                            "01_genotypes/recent.ped ",
+                            "01_genotypes/new_map.map ",
+                            "05_BLUPF90/snp_file.txt")
+  
+  system(command = extract_ped)
+  system(command = prepare_snp_file)
+  
+  # Run RENUMF90
+  cli_alert_info("\nRunning RENUMF90.\n")
+  setwd("05_BLUPF90/")
+  system(command = "renumf90", input = "renum.txt")
+  
+  # Run BLUPF90
+  cli_alert_info("\nRunning BLUPF90.\n")
+  system(command = "blupf90", input = "renf90.par")
+  
+  setwd("../")
+  cli_alert_success("\nAnalyses with BLUPF90 completed.\n")
+}
+
+# ---- Select candidates ----
+selectCandidates = function(pop, file_name, append, method=1){
+  
+  # Fit RR-BLUP model for genomic predictions
+  ans = RRBLUP(pop, simParam=SP)
+  pop = setEBV(pop, ans, simParam=SP)
+  
+  BLUP = data.frame(ID = pop@id, 
+                    sex = pop@sex,
+                    pheno = pop@pheno,
+                    EBV = pop@ebv, 
+                    GV = pop@gv)
+  names(BLUP) = c('ID','sex','pheno','EBV','GV')
+  
+  # Read EBVs
+  BLUPF90_EBVs = read.table("05_BLUPF90/solutions.orig", header = T)
+  
+  # Read Fg
+  Fg = read.table("05_BLUPF90/DiagGOrig.txt",
+                  col.names = c("ID","Fg"))
+  
+  # Merge dataframes
+  merged_data = merge(BLUP, BLUPF90_EBVs[,c("original_id","solution")],
+                      by.x = "ID", by.y = "original_id",
+                      how = "left")
+  merged_data = merge(merged_data, Fg,
+                      by = "ID", how = "left")
+  
+  write.csv(merged_data, file_name, append = append,
+            quote = F, row.names = F)
+  
+  # Check correlations
+  paste0("Correlation AlphaSimR EBV and GV: ", 
+         round(cor(merged_data$EBV, merged_data$GV),2))
+  paste0("Correlation BLUPF90 EBV and GV: ", 
+         round(cor(merged_data$solution, merged_data$GV),2))
+  paste0("Correlation AlphaSimR EBV and BLUPF90 EBV: ", 
+         round(cor(merged_data$EBV, merged_data$solution),2))
+  
+  # Select animals based on BLUPF90 EBV
+  if (method == 1) {
+    males = merged_data %>%
+      arrange(desc(solution)) %>% 
+      filter(sex == "M") %>% 
+      slice_head(n=50)
+    
+    females = merged_data %>%
+      arrange(desc(solution)) %>% 
+      filter(sex == "F") %>% 
+      slice_head(n=250)
+  }
+  if (method == 2) {
+    males = merged_data %>%
+      arrange(desc(solution)) %>% 
+      filter(sex == "M") %>% 
+      slice_head(n=50)
+    
+    females = merged_data %>%
+      arrange(desc(solution)) %>% 
+      filter(sex == "F") %>% 
+      slice_head(n=250)
+  }
+  
+  male_parents = pop[pop@id %in% males$ID]
+  female_parents = pop[pop@id %in% females$ID]
+  
+  paste0("Mean EBV of the population: ",
+         round(mean(merged_data$solution), 2))
+  paste0("Mean EBV of selected males: ",
+         round(mean(males$solution), 2))
+  paste0("Mean EBV of selected females: ",
+         round(mean(females$solution), 2))
+  
+  parents = c(males$ID, females$ID)
+  
+  return(parents)
+}
