@@ -95,7 +95,7 @@ rm(expanded_sample_100)
 
 # ---- Recent Population ----
 
-cli_h2("\nGenerating recent population A.\n")
+cli_h2("\nGenerating recent population.\n")
 year = year + 1
 recentPop = makeRecentPop(previous_pop = expandedPop, 
                      males_each_year = c(400,100), 
@@ -108,9 +108,6 @@ recentPop = makeRecentPop(previous_pop = expandedPop,
                                            "RecentA",
                                            TRUE))
 recentPop = recentPop[[1]]
-
-# Record data for BLUPF90
-rec_data("05_BLUPF90/pedigree.txt", recentPop, "Recent", year, append = FALSE)
 
 # Fit RR-BLUP model for genomic predictions
 cli_alert_info("\nCalculating EBVs with internal algorithm\n")

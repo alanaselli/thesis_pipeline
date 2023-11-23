@@ -428,42 +428,53 @@ crossPops = function(
 }
 
 # ---- runBLUPF90 ----
-runBLUPF90 = function(){
+runBLUPF90 = function(ped_file, min_gen){
   
   # Prepare files for RENUMF90
-  cli_alert_info("\nInitiating data preparation for BLUPF90.\n")
-  extract_ped = paste0("05_BLUPF90/extract_ped.sh ",
-                       "01_genotypes/pedigree.txt ",
-                       "05_BLUPF90/dat1.txt ",
-                       "05_BLUPF90/ped1.txt")
+  setwd("05_BLUPF90/")
   
-  prepare_snp_file = paste0("05_BLUPF90/prepare_snp_file.sh ",
-                            "01_genotypes/recent.ped ",
-                            "01_genotypes/new_map.map ",
-                            "05_BLUPF90/snp_file.txt")
+  cli_alert_info("\nInitiating data preparation for BLUPF90.\n")
+  extract_ped = paste0("./extract_ped.sh ",
+                       "../01_genotypes/pedigree.txt ",
+                       "dat1.txt ",
+                       "ped1.txt ",
+                       min_gen)
+  
+  prepare_snp_file = paste0("./prepare_snp_file.sh ",
+                            paste0("../01_genotypes/",ped_file," "),
+                            "../01_genotypes/new_map.map ",
+                            "snp_file.txt")
   
   system(command = extract_ped)
   system(command = prepare_snp_file)
   
   # Run RENUMF90
   cli_alert_info("\nRunning RENUMF90.\n")
-  setwd("05_BLUPF90/")
-  system(command = "renumf90", input = "renum.txt")
+  
+  system(command = "./renumf90", input = "renum.txt")
   
   # Run BLUPF90
   cli_alert_info("\nRunning BLUPF90.\n")
-  system(command = "blupf90", input = "renf90.par")
+  system(command = "./blupf90", input = "renf90.par")
   
   setwd("../")
   cli_alert_success("\nAnalyses with BLUPF90 completed.\n")
 }
 
 # ---- Select candidates ----
-selectCandidates = function(pop, file_name, append, method=1){
+selectCandidates = function(pop, 
+                            file_name, 
+                            append, 
+                            method=1,
+                            top_ebv,
+                            Fg_threshold = NULL){
   
   # Fit RR-BLUP model for genomic predictions
   ans = RRBLUP(pop, simParam=SP)
   pop = setEBV(pop, ans, simParam=SP)
+  print("pop ebv:")
+  print(head(pop@ebv)) # check whether the ebv slot was
+                       # filled in the global environment
   
   BLUP = data.frame(ID = pop@id, 
                     sex = pop@sex,
@@ -490,48 +501,51 @@ selectCandidates = function(pop, file_name, append, method=1){
             quote = F, row.names = F)
   
   # Check correlations
-  paste0("Correlation AlphaSimR EBV and GV: ", 
-         round(cor(merged_data$EBV, merged_data$GV),2))
-  paste0("Correlation BLUPF90 EBV and GV: ", 
-         round(cor(merged_data$solution, merged_data$GV),2))
-  paste0("Correlation AlphaSimR EBV and BLUPF90 EBV: ", 
-         round(cor(merged_data$EBV, merged_data$solution),2))
+  cli_alert_info(paste0("\nCorrelation AlphaSimR EBV and GV: ", 
+                        round(cor(merged_data$EBV, merged_data$GV),2)))
+  cli_alert_info(paste0("\nCorrelation BLUPF90 EBV and GV: ", 
+                        round(cor(merged_data$solution, merged_data$GV),2)))
+  cli_alert_info(paste0("\nCorrelation AlphaSimR EBV and BLUPF90 EBV: ", 
+                        round(cor(merged_data$EBV, merged_data$solution),2)))
   
   # Select animals based on BLUPF90 EBV
   if (method == 1) {
     males = merged_data %>%
       arrange(desc(solution)) %>% 
       filter(sex == "M") %>% 
-      slice_head(n=50)
+      slice_head(n=top_ebv[1])
     
     females = merged_data %>%
       arrange(desc(solution)) %>% 
       filter(sex == "F") %>% 
-      slice_head(n=250)
+      slice_head(n=top_ebv[2])
   }
+  
+  # Select animals based on BLUPF90 EBV and Fg
   if (method == 2) {
+    
     males = merged_data %>%
       arrange(desc(solution)) %>% 
-      filter(sex == "M") %>% 
-      slice_head(n=50)
+      filter(sex == "M" & Fg <= Fg_threshold) %>% 
+      slice_head(n=top_ebv[1])
     
     females = merged_data %>%
       arrange(desc(solution)) %>% 
-      filter(sex == "F") %>% 
-      slice_head(n=250)
+      filter(sex == "F" & Fg <= Fg_threshold) %>% 
+      slice_head(n=top_ebv[2])
   }
   
   male_parents = pop[pop@id %in% males$ID]
   female_parents = pop[pop@id %in% females$ID]
   
-  paste0("Mean EBV of the population: ",
-         round(mean(merged_data$solution), 2))
-  paste0("Mean EBV of selected males: ",
-         round(mean(males$solution), 2))
-  paste0("Mean EBV of selected females: ",
-         round(mean(females$solution), 2))
+  cli_alert_info(paste0("Mean EBV of the population: ",
+                        round(mean(merged_data$solution), 2)))
+  cli_alert_info(paste0("Mean EBV of selected males: ",
+                        round(mean(males$solution), 2)))
+  cli_alert_info(paste0("Mean EBV of selected females: ",
+                        round(mean(females$solution), 2)))
   
-  parents = c(males$ID, females$ID)
+  parents = c(male_parents, female_parents)
   
   return(parents)
 }

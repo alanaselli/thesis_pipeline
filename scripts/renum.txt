@@ -1,0 +1,27 @@
+DATAFILE
+dat1.txt
+TRAITS
+7
+FIELDS_PASSED TO OUTPUT
+
+WEIGHT(S)
+
+RESIDUAL_VARIANCE
+0.7 # guess
+EFFECT # sex
+5 cross alpha
+EFFECT # animal
+1 cross alpha
+RANDOM
+animal
+FILE # pedigree file
+ped1.txt
+FILE_POS
+# animal, sire and dam IDs with two 0s
+1 2 3 0 0
+SNP_FILE # SNP marker file
+snp_file.txt
+(CO)VARIANCES # its variance component
+0.5 # guess
+OPTION saveDiagGOrig
+OPTION origID
