@@ -81,7 +81,7 @@ recentPop = makeRecentPop(previous_pop = expandedPop,
                           years_of_breeding = 10,
                           addPrefix = "C",
                           rec_data_param = list(paste0(geno_path,"pedigree.txt"),
-                                                "RecentA",
+                                                "Recent",
                                                 TRUE))
 recentPop = recentPop[[1]]
 
@@ -94,7 +94,7 @@ writePlink(recentPop, paste0(geno_path,"recent"))
 source("scripts/convert_SNP_pos.R")
 
 # ---- Start new selection process ----
-
+cli_alert_info("\nRunning evaluation for the last recent generation.\n")
 # Run BLUPF90
 runBLUPF90("recent.ped",
            min_gen=year-10) # This function is very specific to my data
@@ -103,10 +103,11 @@ year_1 = year+1
 year_2 = year+1
 
 # ---- Scenario 1 ----
+cli_h3("\nInitiating scenario 1.\n")
 # Select candidates
 parents_1 = selectCandidates(recentPop, 
                            "scenario_1/only_EBV.csv", 
-                           TRUE, method=1,
+                           FALSE, method=1,
                            top_ebv=c(50,250))
 
 # Perform matings
@@ -114,17 +115,18 @@ parents_1 = selectCandidates(recentPop,
 candidates_1 = randCross(parents_1, nCrosses = 1000)
 
 # Save pedigree data
+cli_alert_info("\nRecording data for gen 1 of scenario 1.\n")
 rec_data(paste0(geno_path,"pedigree.txt"), 
-         candidates_1, "scenario_1", year_1, append = FALSE)
+         candidates_1, "scenario_1", year_1, append = TRUE)
 
 # Save genotypes
 writePlink(candidates_1, paste0(geno_path,"sc_1_gen_1"))
 
 # Continue this process for 10 generations
 for (i in 1:10) {
-    
+    cli_alert_info(paste0("\nInitiating gen ",i," of scenario 1.\n"))
     year_1=year_1+1
-    ped_name = paste0("sc_1_gen_",i+1)
+    ped_name = paste0("sc_1_gen_",i)
     
     # Run BLUPF90
     runBLUPF90(paste0(ped_name,".ped"),
@@ -132,8 +134,10 @@ for (i in 1:10) {
     
     # Select candidates
     parents_1 = selectCandidates(candidates_1, 
-                                 "scenario_1/only_EBV.csv", 
-                                 TRUE, method=1,
+                                 paste0("scenario_1/",
+                                        ped_name,
+                                        ".csv"), 
+                                 FALSE, method=1,
                                  top_ebv=c(50,250))
     
     # Perform matings
@@ -141,19 +145,22 @@ for (i in 1:10) {
     
     # Save pedigree data
     rec_data(paste0(geno_path,"pedigree.txt"), 
-             candidates_1, "scenario_1", year_1, append = FALSE)
+             candidates_1, "scenario_1", year_1, append = TRUE)
     
     # Save genotypes
+    ped_name = paste0("sc_1_gen_",i+1)
     writePlink(candidates_1, paste0(geno_path,ped_name))
 }
 
 rm(parents_1, candidates_1)
+cli_alert_success("\nScenario 1 completed.\n")
 
 # ---- Scenario 2 ----
+cli_h3("\nInitiating scenario 2.\n")
 # Select candidates
 parents_2 = selectCandidates(recentPop, 
                              "scenario_2/EBV_Fg.csv", 
-                             TRUE, method=2,
+                             FALSE, method=2,
                              top_ebv=c(50,250),
                              Fg_threshold = 1.05)
 
@@ -161,17 +168,18 @@ parents_2 = selectCandidates(recentPop,
 candidates_2 = randCross(parents_2, nCrosses = 1000)
 
 # Save pedigree data
+cli_alert_info("\nRecording data for gen 1 of scenario 2.\n")
 rec_data(paste0(geno_path,"pedigree.txt"), 
-         candidates_2, "scenario_2", year_2, append = FALSE)
+         candidates_2, "scenario_2", year_2, append = TRUE)
 
 # Save genotypes
 writePlink(candidates_2, paste0(geno_path,"sc_2_gen_2"))
 
 # Continue this process for 10 generations
 for (i in 1:10) {
-    
+    cli_alert_info(paste0("\nInitiating gen ",i," of scenario 2.\n"))
     year_2=year_2+1
-    ped_name = paste0("sc_2_gen_",i+1)
+    ped_name = paste0("sc_2_gen_",i)
     
     # Run BLUPF90
     runBLUPF90(paste0(ped_name,".ped"),
@@ -189,11 +197,12 @@ for (i in 1:10) {
     
     # Save pedigree data
     rec_data(paste0(geno_path,"pedigree.txt"), 
-             candidates_2, "scenario_2", year_2, append = FALSE)
+             candidates_2, "scenario_2", year_2, append = TRUE)
     
     # Save genotypes
+    ped_name = paste0("sc_2_gen_",i+1)
     writePlink(candidates_2, paste0(geno_path,ped_name))
 }
-
+cli_alert_success("\nScenario 2 completed.\n")
 cli_alert_success("All processes of the simulation are completed.")
 

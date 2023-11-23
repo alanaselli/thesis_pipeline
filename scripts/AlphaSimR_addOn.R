@@ -472,9 +472,6 @@ selectCandidates = function(pop,
   # Fit RR-BLUP model for genomic predictions
   ans = RRBLUP(pop, simParam=SP)
   pop = setEBV(pop, ans, simParam=SP)
-  print("pop ebv:")
-  print(head(pop@ebv)) # check whether the ebv slot was
-                       # filled in the global environment
   
   BLUP = data.frame(ID = pop@id, 
                     sex = pop@sex,
@@ -484,11 +481,17 @@ selectCandidates = function(pop,
   names(BLUP) = c('ID','sex','pheno','EBV','GV')
   
   # Read EBVs
-  BLUPF90_EBVs = read.table("05_BLUPF90/solutions.orig", header = T)
+  BLUPF90_EBVs = read.table("05_BLUPF90/solutions.orig", header = T
+                            # colClasses = c("integer","integer",
+                            #                "integer","character",
+                            #                "numeric")
+                            )
   
   # Read Fg
   Fg = read.table("05_BLUPF90/DiagGOrig.txt",
-                  col.names = c("ID","Fg"))
+                  col.names = c("ID","Fg")
+                  #colClasses = c("character","numeric")
+                  )
   
   # Merge dataframes
   merged_data = merge(BLUP, BLUPF90_EBVs[,c("original_id","solution")],
@@ -523,7 +526,6 @@ selectCandidates = function(pop,
   
   # Select animals based on BLUPF90 EBV and Fg
   if (method == 2) {
-    
     males = merged_data %>%
       arrange(desc(solution)) %>% 
       filter(sex == "M" & Fg <= Fg_threshold) %>% 
@@ -535,8 +537,13 @@ selectCandidates = function(pop,
       slice_head(n=top_ebv[2])
   }
   
-  male_parents = pop[pop@id %in% males$ID]
-  female_parents = pop[pop@id %in% females$ID]
+  male_parents = pop[pop@id %in% as.character(males$ID)]
+  try(if(male_parents@nInd != top_ebv[1]) 
+    stop("The number of selected males is different than the required."))
+  
+  female_parents = pop[pop@id %in% as.character(females$ID)]
+  try(if(female_parents@nInd != top_ebv[2]) 
+    stop("The number of selected females is different than the required."))
   
   cli_alert_info(paste0("Mean EBV of the population: ",
                         round(mean(merged_data$solution), 2)))
