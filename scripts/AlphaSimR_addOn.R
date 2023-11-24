@@ -461,13 +461,15 @@ runBLUPF90 = function(ped_file, min_gen){
   cli_alert_success("\nAnalyses with BLUPF90 completed.\n")
 }
 
-# ---- Select candidates ----
+# ---- selectCandidates ----
 selectCandidates = function(pop, 
                             file_name, 
                             append, 
-                            method=1,
-                            top_ebv,
-                            Fg_threshold = NULL){
+                            method=1, # 1=EBV; 2=EBV+Fg
+                            top_ebv,  # c(nMales, nFemales)
+                                      # int or fraction
+                            Fg_threshold = NULL # Max inbreeding
+                            ){
   
   # Fit RR-BLUP model for genomic predictions
   ans = RRBLUP(pop, simParam=SP)
@@ -500,7 +502,8 @@ selectCandidates = function(pop,
   merged_data = merge(merged_data, Fg,
                       by = "ID", how = "left")
   
-  write.csv(merged_data, file_name, append = append,
+  write.csv(merged_data, file_name, 
+            #append = append,
             quote = F, row.names = F)
   
   # Check correlations
@@ -511,38 +514,64 @@ selectCandidates = function(pop,
   cli_alert_info(paste0("\nCorrelation AlphaSimR EBV and BLUPF90 EBV: ", 
                         round(cor(merged_data$EBV, merged_data$solution),2)))
   
+  # If a fraction was passed for EBV, calculate the number of
+  # animals to select
+  # males
+  if (top_ebv[1]<1) {
+    nMales = nrow(merged_data[merged_data$sex == "M",])
+    selectMales = ceiling(nMales * top_ebv[1]) # round up
+  } else {selectMales = top_ebv[1]}
+  
+  # females
+  if (top_ebv[2]<1) {
+    nFemales = nrow(merged_data[merged_data$sex == "F",])
+    selectFemales = ceiling(nFemales * top_ebv[2]) # round up
+  } else {selectFemales = top_ebv[2]}
+  
+  
   # Select animals based on BLUPF90 EBV
   if (method == 1) {
     males = merged_data %>%
       arrange(desc(solution)) %>% 
       filter(sex == "M") %>% 
-      slice_head(n=top_ebv[1])
+      slice_head(n=selectMales)
     
     females = merged_data %>%
       arrange(desc(solution)) %>% 
       filter(sex == "F") %>% 
-      slice_head(n=top_ebv[2])
+      slice_head(n=selectFemales)
   }
   
   # Select animals based on BLUPF90 EBV and Fg
   if (method == 2) {
+    
+    # Check how many males and females pass the Fg filter
+    check = merged_data %>% 
+      filter(Fg <= Fg_threshold) %>% 
+      group_by(sex) %>% 
+      summarise(n=n())
+    
+    cli_alert_info(paste0(check$n[2]," males pass the Fg filter."))
+    cli_alert_info(paste0(check$n[1]," females pass the Fg filter."))
+    
     males = merged_data %>%
       arrange(desc(solution)) %>% 
       filter(sex == "M" & Fg <= Fg_threshold) %>% 
-      slice_head(n=top_ebv[1])
+      slice_head(n=selectMales)
     
     females = merged_data %>%
       arrange(desc(solution)) %>% 
       filter(sex == "F" & Fg <= Fg_threshold) %>% 
-      slice_head(n=top_ebv[2])
+      slice_head(n=selectFemales)
   }
   
+  # Check the number of selected animals
   male_parents = pop[pop@id %in% as.character(males$ID)]
-  try(if(male_parents@nInd != top_ebv[1]) 
+  try(if(male_parents@nInd != selectMales) 
     stop("The number of selected males is different than the required."))
   
   female_parents = pop[pop@id %in% as.character(females$ID)]
-  try(if(female_parents@nInd != top_ebv[2]) 
+  try(if(female_parents@nInd != selectFemales) 
     stop("The number of selected females is different than the required."))
   
   cli_alert_info(paste0("Mean EBV of the population: ",
