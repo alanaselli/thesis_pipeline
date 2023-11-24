@@ -585,3 +585,20 @@ selectCandidates = function(pop,
   
   return(parents)
 }
+
+# ---- makeFakePed ----
+makeFakePed = function(pop) {
+  males = pop[pop@sex == "M"]
+  females = pop[pop@sex == "F"]
+  
+  fakePed = expand.grid(males@id, females@id,
+                        KEEP.OUT.ATTRS=FALSE,
+                        stringsAsFactors=FALSE)
+  names(fakePed) = c("sire", "dam")
+  
+  fakePed = fakePed %>% 
+    dplyr::mutate(ID = paste0(sire,"_",dam)) %>% 
+    select(ID, sire, dam)
+  
+  return(fakePed)
+}
