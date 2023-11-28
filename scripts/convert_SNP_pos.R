@@ -4,9 +4,9 @@ library(cli)
 cli_h1("\nInitiating map correction.\n")
 
 n_snps = c(950)
-#n_snps = c(2000, 2000, 2000, 2000, 2000)
-chr_lengths = c(1e8)
-#chr_lengths = c(1.58e8, 1.58e8, 1.58e8, 1.58e8, 1.58e8)
+n_snps = c(3000, 3000, 3000, 3000, 3000)
+#chr_lengths = c(1e8)
+chr_lengths = c(1.58e8, 1.58e8, 1.58e8, 1.58e8, 1.58e8)
 
 # maps_list = tools::file_path_sans_ext(list.files(path = "01_genotypes", 
 #                                                  pattern = "*.map",
@@ -14,7 +14,7 @@ chr_lengths = c(1e8)
 
 options(scipen = 999)
 
-plink_map1 = read.table("01_genotypes/recent.map", header = F, 
+plink_map1 = read.table("01_genotypes/founder_sample_100.map", header = F, 
                        col.names = c("chr", "snp", "dist_cM", "dist_bp"))
 plink_map1$dist_cM = plink_map1$dist_cM/10
 

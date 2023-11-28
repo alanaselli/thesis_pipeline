@@ -50,6 +50,9 @@ writePlink(founder_sample_100,paste0(geno_path,"founder_QTL"), useQtl = TRUE)
 
 rm(founderGenomes,founder_sample_100)
 
+# Change positions in map file
+source("scripts/convert_SNP_pos.R")
+
 # ---- Expand population ----
 
 cli_h2("\nExpanding founder population.\n")
@@ -66,8 +69,8 @@ year = year + 1
 rec_data(paste0(geno_path,"pedigree.txt"), expandedPop, 
          "Expanded", year, append = TRUE)
 
-cli_progress_bar("Expanding population", total = 80)
-for (gen in 1:80) {
+cli_progress_bar("Expanding population", total = 70)
+for (gen in 1:70) {
     nCrosses = round(nCrosses*1.05)
     expandedPop = randCross(
         pop = expandedPop,
