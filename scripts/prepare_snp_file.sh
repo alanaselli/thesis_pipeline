@@ -27,7 +27,7 @@ awk '{$1=$3=$4=$5=$6="";gsub(FS "+",FS)}1' plink.temp > plink.temp2
 sed 's/^[ \t]*//' plink.temp2 > plink.temp3
 sed 's/ /,/' plink.temp3 > plink.temp4 
 sed 's/ //g' plink.temp4 > plink.temp5
-sed 's/,/\t/g' plink.temp5 > $output_file
+column -s',' -t plink.temp5 > $output_file
 
 rm *temp*
 
