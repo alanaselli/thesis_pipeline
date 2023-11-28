@@ -13,7 +13,7 @@ cli_h2("\nGenerating founder genomes.\n")
 
 founderGenomes = runMacs2(
     nInd = 2000,
-    nChr = 4,
+    nChr = 5,
     Ne = 200,
     histNe = c(1000, 2000, 4000, 7500, 10000),
     histGen = c(50, 100, 500, 1000, 1500)
@@ -21,10 +21,10 @@ founderGenomes = runMacs2(
 
 SP = SimParam$new(founderGenomes)
 SP$setSexes("yes_sys")
-SP$addSnpChip(nSnpPerChr = 2000)
+SP$addSnpChip(nSnpPerChr = 3000)
 
 # Add simple additive trait
-SP$addTraitA(nQtlPerChr = c(30, 15, 5, 0), mean = 0, var = 1)
+SP$addTraitA(nQtlPerChr = c(50, 30, 15, 5, 0), mean = 0, var = 1)
 SP$setVarE(h2 = 0.3)
 
 # Save QTL effects
@@ -37,7 +37,6 @@ rm(QTL_map)
 
 # ---- Generate initial populations ----
 founderPop = newPop(founderGenomes)
-founderPop@id = add_prefix(founderPop, "A")
 year = 0
 rec_data(paste0(geno_path,"pedigree.txt"), founderPop, 
          "Founder", year, append = FALSE)
@@ -62,7 +61,7 @@ expandedPop = randCross(
     nProgeny = 1
 )
 rm(founderPop)
-expandedPop@id = add_prefix(expandedPop, "B")
+
 year = year + 1
 rec_data(paste0(geno_path,"pedigree.txt"), expandedPop, 
          "Expanded", year, append = TRUE)
@@ -75,7 +74,6 @@ for (gen in 1:80) {
         nCrosses = nCrosses,
         nProgeny = 1
     )
-    expandedPop@id = add_prefix(expandedPop, "B")
     year = year + 1
     rec_data(paste0(geno_path,"pedigree.txt"), expandedPop, 
              "Expanded", year, append = TRUE)
@@ -99,29 +97,14 @@ cli_h2("\nGenerating recent population.\n")
 year = year + 1
 recentPop = makeRecentPop(previous_pop = expandedPop, 
                      males_each_year = c(400,100), 
-                     females_each_year = c(5000,2500,1500,750,250), 
+                     females_each_year = c(3000,2500,2000,1500,1000), 
                      nCrosses = 10000, 
                      year = year,
                      years_of_breeding = 30,
-                     addPrefix = "C",
                      rec_data_param = list(paste0(geno_path,"pedigree.txt"),
-                                           "RecentA",
+                                           "Recent",
                                            TRUE))
 recentPop = recentPop[[1]]
-
-# Fit RR-BLUP model for genomic predictions
-cli_alert_info("\nCalculating EBVs with internal algorithm\n")
-ans = RRBLUP(recentPop, simParam=SP)
-recentPop = setEBV(recentPop, ans, simParam=SP)
-
-BLUP = data.frame(ID = recentPop@id, 
-                  sex = recentPop@sex,
-                  pheno = recentPop@pheno,
-                  EBV = recentPop@ebv, 
-                  GV = recentPop@gv)
-names(BLUP) = c('ID','sex','pheno','EBV','GV')
-
-#write.table(BLUP,"BLUP_AlphaSimR.txt", row.names = F, quote = F)
 
 cli_alert_info("\nWriting PLINK file for recent\n")
 writePlink(recentPop, paste0(geno_path,"recent"))
@@ -138,6 +121,64 @@ rm(recentPop_sample_100)
 cli_alert_success("\nMain simulation completed.\n")
 
 # ---- Start new selection process ----
+cli_alert_info("\nRunning evaluation for the last recent generation.\n")
 
 # Run BLUPF90
-runBLUPF90() # This function is very specific to my data
+runBLUPF90("recent.ped",
+           min_gen=year-10) # This function is very specific to my data
+
+year_1 = year+1
+
+# Select candidates
+parents_1 = selectCandidates(pop=recentPop, 
+                             file_name=paste0("scenario_1/select_by_EBV.csv"), 
+                             append=FALSE, 
+                             method=1,
+                             top_ebv=c(500,2500))
+
+# Perform matings
+# 10000 crosses to generate 5000 females and select 2500 of them
+candidates_1 = randCross(parents_1, nCrosses = 10000)
+
+# Save pedigree data
+cli_alert_info("\nRecording data for gen 1 of scenario 1.\n")
+rec_data(paste0(geno_path,"pedigree.txt"), 
+         candidates_1, "scenario_1", year_1, append = TRUE)
+
+# Save genotypes
+writePlink(candidates_1, paste0(geno_path,"sc_1_gen_1"))
+
+# Continue this process for 10 generations
+for (i in 1:10) {
+    cli_alert_info(paste0("\nInitiating gen ",i," of scenario 1.\n"))
+    year_1=year_1+1
+    ped_name = paste0("sc_1_gen_",i)
+    
+    # Run BLUPF90
+    runBLUPF90(paste0(ped_name,".ped"),
+               min_gen=year_1-10)
+    
+    # Select candidates
+    parents_1 = selectCandidates(pop=candidates_1, 
+                                 file_name=paste0("scenario_1/select_by_EBV.csv"), 
+                                 append=TRUE, 
+                                 method=1,             # 1=EBV; 2=EBV+Fg
+                                 top_ebv=c(500,2500))  # c(nMales, nFemales)
+    
+    # Perform matings
+    candidates_1 = randCross(parents_1, nCrosses = 10000)
+    
+    # Save pedigree data
+    rec_data(paste0(geno_path,"pedigree.txt"), 
+             candidates_1, "scenario_1", year_1, append = TRUE)
+    
+    # Save genotypes
+    ped_name = paste0("sc_1_gen_",i+1)
+    writePlink(candidates_1, paste0(geno_path,ped_name))
+}
+
+end_time = Sys.time()
+total_time = end_time-start_time
+
+cli_alert_info(paste0("\nRunning time of the simulation: ", total_time,"\n"))
+cli_alert_success("\nAll processes of the simulation are completed.\n")
