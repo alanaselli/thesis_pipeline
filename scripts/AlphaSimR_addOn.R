@@ -464,7 +464,7 @@ runBLUPF90 = function(ped_file, min_gen){
 # ---- selectCandidates ----
 selectCandidates = function(pop, 
                             file_name, 
-                            append, 
+                            append=TRUE, 
                             method=1, # 1=EBV; 2=EBV+Fg
                             top_ebv,  # c(nMales, nFemales)
                                       # int or fraction
@@ -503,7 +503,7 @@ selectCandidates = function(pop,
                       by = "ID", how = "left")
   
   write.csv(merged_data, file_name, 
-            #append = append,
+            append = append,
             quote = F, row.names = F)
   
   # Check correlations

@@ -13,6 +13,7 @@ RUN apt-get -y install plink1.9
 RUN apt-get -y install python3
 RUN apt-get -y install python3-pip
 RUN apt-get -y install less
+RUN apt-get -y install bsdmainutils
 RUN pip install pandas==2.0.3
 RUN apt-get install nano -y
 RUN mv /usr/bin/plink1.9 /usr/bin/plink
