@@ -140,7 +140,7 @@ runBLUPF90("recent.ped",
            min_gen=year-10) # This function is very specific to my data
 
 year_1 = year+1
-cli_alert(paste0("Year: ",year))
+cli_alert(paste0("Year: ",year_1))
 
 # Select candidates
 parents_1 = selectCandidates(pop=recentPop, 
@@ -165,7 +165,7 @@ writePlink(candidates_1, paste0(geno_path,"sc_1_gen_1"))
 for (i in 1:10) {
     cli_alert_info(paste0("\nInitiating gen ",i," of scenario 1.\n"))
     year_1=year_1+1
-    cli_alert(paste0("Year: ",year))
+    cli_alert(paste0("Year: ",year_1))
     ped_name = paste0("sc_1_gen_",i)
     
     # Run BLUPF90

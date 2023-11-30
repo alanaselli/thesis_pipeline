@@ -1,4 +1,5 @@
 library(AlphaSimR)
+library(dplyr)
 
 # ---- new_dir_date ----
 # Create a new directory with today's date
