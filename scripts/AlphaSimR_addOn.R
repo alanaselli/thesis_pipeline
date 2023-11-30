@@ -446,6 +446,7 @@ runBLUPF90 = function(ped_file, min_gen){
                             "snp_file.txt")
   
   system(command = extract_ped)
+  
   system(command = prepare_snp_file)
   
   # Run RENUMF90

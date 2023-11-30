@@ -38,6 +38,7 @@ rm(QTL_map)
 # ---- Generate initial populations ----
 founderPop = newPop(founderGenomes)
 year = 0
+cli_alert(paste0("Year: ",year))
 rec_data(paste0(geno_path,"pedigree.txt"), founderPop, 
          "Founder", year, append = FALSE)
 
@@ -66,6 +67,8 @@ expandedPop = randCross(
 rm(founderPop)
 
 year = year + 1
+cli_alert(paste0("Year: ",year))
+
 rec_data(paste0(geno_path,"pedigree.txt"), expandedPop, 
          "Expanded", year, append = TRUE)
 
@@ -84,6 +87,7 @@ for (gen in 1:70) {
 }
 cli_alert_info(paste0("\n",expandedPop@nInd, 
                       " individuals in the last expansion generation.\n"))
+cli_alert(paste0("Year: ",year))
 
 cli_alert_info("\nWriting PLINK file for expanded_sample_100\n")
 expanded_sample_100 = selectInd(expandedPop, nInd = 100, use = "rand")
@@ -98,6 +102,7 @@ rm(expanded_sample_100)
 
 cli_h2("\nGenerating recent population.\n")
 year = year + 1
+cli_alert(paste0("Year: ",year))
 recentPop = makeRecentPop(previous_pop = expandedPop, 
                      males_each_year = c(200,50), 
                      females_each_year = c(1500,1250,1000,750,500), 
@@ -108,6 +113,8 @@ recentPop = makeRecentPop(previous_pop = expandedPop,
                                            "Recent",
                                            TRUE))
 recentPop = recentPop[[1]]
+year=year+30
+cli_alert(paste0("Year: ",year))
 
 cli_alert_info("\nWriting PLINK file for recent\n")
 writePlink(recentPop, paste0(geno_path,"recent"))
@@ -131,6 +138,7 @@ runBLUPF90("recent.ped",
            min_gen=year-10) # This function is very specific to my data
 
 year_1 = year+1
+cli_alert(paste0("Year: ",year))
 
 # Select candidates
 parents_1 = selectCandidates(pop=recentPop, 
@@ -155,6 +163,7 @@ writePlink(candidates_1, paste0(geno_path,"sc_1_gen_1"))
 for (i in 1:10) {
     cli_alert_info(paste0("\nInitiating gen ",i," of scenario 1.\n"))
     year_1=year_1+1
+    cli_alert(paste0("Year: ",year))
     ped_name = paste0("sc_1_gen_",i)
     
     # Run BLUPF90
