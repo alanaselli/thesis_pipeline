@@ -52,7 +52,9 @@ writePlink(founder_sample_100,paste0(geno_path,"founder_QTL"), useQtl = TRUE)
 rm(founderGenomes,founder_sample_100)
 
 # Change positions in map file
-source("scripts/convert_SNP_pos.R")
+adjust_pos("01_genotypes/founder_sample_100.map",
+           c(3000, 3000, 3000, 3000, 3000), 
+           c(1.58e8, 1.58e8, 1.58e8, 1.58e8, 1.58e8))
 
 # ---- Expand population ----
 
@@ -104,9 +106,9 @@ cli_h2("\nGenerating recent population.\n")
 year = year + 1
 cli_alert(paste0("Year: ",year))
 recentPop = makeRecentPop(previous_pop = expandedPop, 
-                     males_each_year = c(200,50), 
-                     females_each_year = c(1500,1250,1000,750,500), 
-                     nCrosses = 5000, 
+                     males_each_year = c(40,10), 
+                     females_each_year = c(300,250,200,150,100), 
+                     nCrosses = 1000, 
                      year = year,
                      years_of_breeding = 30,
                      rec_data_param = list(paste0(geno_path,"pedigree.txt"),
@@ -145,11 +147,11 @@ parents_1 = selectCandidates(pop=recentPop,
                              file_name=paste0("scenario_1/select_by_EBV.csv"), 
                              append=FALSE, 
                              method=1,
-                             top_ebv=c(250,1250))
+                             top_ebv=c(50,250))
 
 # Perform matings
-# 10000 crosses to generate 5000 females and select 2500 of them
-candidates_1 = randCross(parents_1, nCrosses = 5000)
+# 1000 crosses to generate 500 females and select 250 of them
+candidates_1 = randCross(parents_1, nCrosses = 1000)
 
 # Save pedigree data
 cli_alert_info("\nRecording data for gen 1 of scenario 1.\n")
@@ -175,10 +177,10 @@ for (i in 1:10) {
                                  file_name=paste0("scenario_1/select_by_EBV.csv"), 
                                  append=TRUE, 
                                  method=1,             # 1=EBV; 2=EBV+Fg
-                                 top_ebv=c(250,1250))  # c(nMales, nFemales)
+                                 top_ebv=c(50,250))  # c(nMales, nFemales)
     
     # Perform matings
-    candidates_1 = randCross(parents_1, nCrosses = 5000)
+    candidates_1 = randCross(parents_1, nCrosses = 1000)
     
     # Save pedigree data
     rec_data(paste0(geno_path,"pedigree.txt"), 

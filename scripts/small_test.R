@@ -93,7 +93,8 @@ rm(expandedPop)
 writePlink(recentPop, paste0(geno_path,"recent"))
 
 # Change positions in map file
-source("scripts/convert_SNP_pos.R")
+adjust_pos("01_genotypes/recent.map",
+           c(950), c(1e8))
 
 # ---- Start new selection process ----
 cli_alert_info("\nRunning evaluation for the last recent generation.\n")
