@@ -139,12 +139,13 @@ cli_alert_info("\nRunning evaluation for the last recent generation.\n")
 runBLUPF90("recent.ped",
            min_gen=year-10) # This function is very specific to my data
 
-year_1 = year+1
+year_1 = year_2 = year_3 = year_4 = year+1
 cli_alert(paste0("Year: ",year_1))
 
+# --
 # Select candidates
 parents_1 = selectCandidates(pop=recentPop, 
-                             file_name=paste0("scenario_1/select_by_EBV.csv"), 
+                             file_name=paste0("scenario_1/metrics.csv"), 
                              append=FALSE, 
                              method=1,
                              top_ebv=c(50,250))
@@ -190,6 +191,7 @@ for (i in 1:10) {
     ped_name = paste0("sc_1_gen_",i+1)
     writePlink(candidates_1, paste0(geno_path,ped_name))
 }
+# --
 
 end_time = Sys.time()
 total_time = end_time-start_time

@@ -467,11 +467,11 @@ runBLUPF90 = function(ped_file, min_gen){
   # Run RENUMF90
   cli_alert_info("\nRunning RENUMF90.\n")
   
-  system(command = "./renumf90", input = "renum.txt")
+  system(command = "renumf90", input = "renum.txt")
   
   # Run BLUPF90
   cli_alert_info("\nRunning BLUPF90.\n")
-  system(command = "./blupf90", input = "renf90.par")
+  system(command = "blupf90", input = "renf90.par")
   
   setwd("../")
   cli_alert_success("\nAnalyses with BLUPF90 completed.\n")
@@ -481,7 +481,7 @@ runBLUPF90 = function(ped_file, min_gen){
 selectCandidates = function(pop, 
                             file_name, 
                             append=TRUE, 
-                            method=1, # 1=EBV; 2=EBV+F; 3=EBV+Fg
+                            method=1, # 1=EBV; 2=EBV+F; 3=GEBV+Fg
                             top_ebv,  # c(nMales, nFemales)
                                       # int or fraction
                             max_F = NULL # Max inbreeding (num)
@@ -510,7 +510,7 @@ selectCandidates = function(pop,
                     col.names = c("ID","Fped","delete"),
                     colClasses = c("character","numeric","numeric")
   )
-  Fped = Inbreeding[,c(1,2)]
+  Fped = Fped[,c(1,2)]
   
   # Read Fg
   Fg = read.table("05_BLUPF90/DiagGOrig.txt",
@@ -527,9 +527,16 @@ selectCandidates = function(pop,
   merged_data = merge(merged_data, Fg,
                       by = "ID", how = "left")
   
-  write.csv(merged_data, file_name, 
-            append = append,
-            quote = F, row.names = F)
+  # Save metrics to scenario file
+  if (isTRUE(append)) {
+    write.table(merged_data, file_name, sep = ",", 
+                append = T, col.names = F,
+                quote = F, row.names = F)
+  } else {
+    write.table(merged_data, file_name, sep = ",", 
+                append = F, col.names = T,
+                quote = F, row.names = F)
+  }
   
   # Check correlations
   cli_alert_info(paste0("\nCorrelation AlphaSimR EBV and GV: ", 
@@ -630,6 +637,7 @@ selectCandidates = function(pop,
 
 # ---- makeFakePed ----
 makeFakePed = function(pop) {
+  cli_alert_info("\nStart fake pedigree\n")
   males = pop[pop@sex == "M"]
   females = pop[pop@sex == "F"]
   
@@ -641,6 +649,8 @@ makeFakePed = function(pop) {
   fakePed = fakePed %>% 
     dplyr::mutate(ID = paste0(sire,"_",dam)) %>% 
     select(ID, sire, dam)
+  
+  cli_alert_success("\nFake pedigree completed.\n")
 
   return(fakePed)
 }
@@ -650,6 +660,9 @@ makeFakeHaplos = function(dirToSave,
                           pop=NULL, 
                           malePop=NULL,
                           femalePop=NULL){
+  
+  cli_alert_info("\nStart fake haplotypes\n")
+  
   if (!is.null(pop)) {
     haplo_males = pullSnpHaplo(pop[pop@sex == "M"])
     haplo_females = pullSnpHaplo(pop[pop@sex == "F"])
@@ -697,5 +710,72 @@ makeFakeHaplos = function(dirToSave,
                              malePop, " and ", femalePop,
                              " is completed."))
   }
+}
+
+# ---- SelectionWrapper ----
+SelectionWrapper = function(InitialPop,
+                            nInd, # c(nMales,nFemales)
+                            nCrosses,
+                            nGenerations,
+                            SelectionMethod,
+                            year,
+                            path_Genotypes,
+                            pathNewRecords,
+                            pathAllRecords, # path_to/pedigree.txt
+                            scenarioName
+                            ){
+  # Run BLUPF90 for the initial population
+  runBLUPF90("recent.ped",
+             min_gen=year-10)
   
+  # Select candidates from the initial population
+  initialParents = selectCandidates(pop=InitialPop, 
+                                   file_name=pathNewRecords, 
+                                   append=FALSE, 
+                                   method=SelectionMethod,
+                                   top_ebv=nInd)
+  
+  # Perform matings
+  candidates = randCross(initialParents, nCrosses = nCrosses)
+  
+  # Save pedigree data
+  cli_alert_info(paste0("\nRecording data for gen 1 of ",
+                        scenarioName,".\n"))
+  rec_data(pathAllRecords, candidates, scenarioName, year, append = TRUE)
+  
+  # Save genotypes
+  writePlink(candidates,
+             paste0(path_Genotypes,"sc_",scenarioName,"_gen_1"))
+  
+  # Continue this process for N generations
+  for (i in 2:nGenerations+1) {
+    cli_alert_info(paste0("\nInitiating gen ",i,
+                          " of scenario ", scenarioName,".\n"))
+    year=year+1
+    cli_alert(paste0("Year: ",year))
+    pedParents = paste0("sc_",scenarioName,"_gen_",i-1)
+    
+    # Run BLUPF90
+    runBLUPF90(paste0(pedParents,".ped"),
+               min_gen=year-10)
+    
+    # Select candidates
+    parents = selectCandidates(pop=candidates, 
+                               file_name=pathNewRecords, 
+                               append=TRUE, 
+                               method=SelectionMethod,
+                               top_ebv=nInd)
+    
+    # Perform matings
+    candidates = randCross(parents, nCrosses = nCrosses)
+    
+    # Save pedigree data
+    rec_data(pathAllRecords, candidates, scenarioName, year, append = TRUE)
+    
+    # Save genotypes
+    ped_name = paste0("sc_",scenarioName,"_gen_",i)
+    writePlink(candidates, paste0(geno_path,ped_name))
+  }
+  cli_alert_success(paste0("/nSelection process for scenario ",
+                           scenarioName, " is complete./n"))
 }

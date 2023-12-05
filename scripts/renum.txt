@@ -25,3 +25,4 @@ snp_file.txt
 0.5 # guess
 OPTION saveDiagGOrig
 OPTION origID
+OPTION thrStopCorAG 0
