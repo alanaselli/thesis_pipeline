@@ -443,8 +443,8 @@ crossPops = function(
 }
 
 # ---- runBLUPF90 ----
-runBLUPF90 = function(ped_file, 
-                      param_card, # "renum.txt"
+runBLUPF90 = function(param_card, # "renum.txt"
+                      ped_file=NULL,
                       min_gen){
   
   # Prepare files for RENUMF90
@@ -456,15 +456,17 @@ runBLUPF90 = function(ped_file,
                        "dat1.txt ",
                        "ped1.txt ",
                        min_gen)
-  
-  prepare_snp_file = paste0("./prepare_snp_file.sh ",
-                            paste0("../01_genotypes/",ped_file," "),
-                            "../01_genotypes/new_map.map ",
-                            "snp_file.txt")
-  
   system(command = extract_ped)
   
-  system(command = prepare_snp_file)
+  if (!is.null(ped_file)){
+    prepare_snp_file = paste0("./prepare_snp_file.sh ",
+                              paste0("../01_genotypes/",ped_file," "),
+                              "../01_genotypes/new_map.map ",
+                              "snp_file.txt")
+    system(command = prepare_snp_file)
+  } else {
+    cli_alert_info("No genotypic file was provided.")
+  }
   
   # Run RENUMF90
   cli_alert_info("\nRunning RENUMF90.\n")
@@ -479,26 +481,33 @@ runBLUPF90 = function(ped_file,
   cli_alert_success("\nAnalyses with BLUPF90 completed.\n")
 }
 
+# ---- GBLUP_AlphaSimR ----
+GBLUP_AlphaSimR = function(pop){
+  # Fit RR-BLUP model for genomic predictions
+  ans = RRBLUP(pop, simParam=SP)
+  pop = setEBV(pop, ans, simParam=SP)
+  
+  df = data.frame(ID = pop@id, 
+                    sex = pop@sex,
+                    pheno = pop@pheno,
+                    EBV = pop@ebv, 
+                    GV = pop@gv)
+  names(df) = c('ID','sex','pheno','EBV','GV')
+  return(df)
+}
+
 # ---- selectCandidates ----
 selectCandidates = function(pop, 
                             file_name, 
                             append=TRUE, 
-                            method=1, # 1=EBV; 2=EBV+F; 3=GEBV+Fg
+                            method=1, # 1=EBV; 2=GEBV+F; 3=GEBV+Fg
                             top_ebv,  # c(nMales, nFemales)
                                       # int or fraction
                             max_F = NULL # Max inbreeding (num)
                             ){
   
   # Fit RR-BLUP model for genomic predictions
-  ans = RRBLUP(pop, simParam=SP)
-  pop = setEBV(pop, ans, simParam=SP)
-  
-  BLUP = data.frame(ID = pop@id, 
-                    sex = pop@sex,
-                    pheno = pop@pheno,
-                    EBV = pop@ebv, 
-                    GV = pop@gv)
-  names(BLUP) = c('ID','sex','pheno','EBV','GV')
+  BLUP = GBLUP_AlphaSimR(pop)
   
   # Read EBVs
   BLUPF90_EBVs = read.table("05_BLUPF90/solutions.orig", header = T,
@@ -780,4 +789,179 @@ SelectionWrapper = function(InitialPop,
   }
   cli_alert_success(paste0("/nSelection process for scenario ",
                            scenarioName, " is complete./n"))
+}
+
+# ---- selectCandidates2 ----
+selectCandidates2 = function(pop, 
+                             ped_name, # runBLUPF90
+                             min_gen,  # runBLUPF90
+                             file_name, 
+                             append=TRUE, 
+                             method=1, # 1=EBV+F; 2=GEBV+Fg; 3=GEBV+Froh
+                             top_ebv,  # c(nMales, nFemales)
+                                       # int or fraction
+                             max_F = NULL # Max inbreeding (num)
+){
+  # Select candidates based of fake progenies (pedigree or genomic)
+  
+  if (method == 1){
+    fake_ped = makeFakePed(pop)
+  }
+  
+  # Fit RR-BLUP model for genomic predictions
+  BLUP = GBLUP_AlphaSimR(pop)
+  
+  # Run BLUPF90
+  if (method==1){ 
+    # Run without genomic information
+    runBLUPF90(ped_name,
+               param_card="renum.txt",
+               min_gen)
+  } else {
+    # Run with genomic information
+    runBLUPF90(ped_name,
+               param_card="renum_genomic.txt",
+               min_gen)
+  }
+  
+  # Read EBVs
+  BLUPF90_EBVs = read.table("05_BLUPF90/solutions.orig", header = T,
+                            colClasses = c("integer","integer",
+                                           "integer","character",
+                                           "numeric"))
+  
+  # Read Fped
+  Fped = read.table("05_BLUPF90/renf90.inb",
+                    col.names = c("ID","Fped","delete"),
+                    colClasses = c("character","numeric","numeric"))
+  Fped = Fped[,c(1,2)]
+  
+  if (method == 1) {
+    # Run BLUP again to obtain Fg
+    runBLUPF90(ped_name,
+               param_card="renum_genomic.txt",
+               min_gen)
+  }
+  
+  # Read Fg
+  Fg = read.table("05_BLUPF90/DiagGOrig.txt",
+                  col.names = c("ID","Fg"),
+                  colClasses = c("character","numeric")
+  )
+  
+  # Merge dataframes
+  merged_data = merge(BLUP, BLUPF90_EBVs[,c("original_id","solution")],
+                      by.x = "ID", by.y = "original_id",
+                      how = "left")
+  merged_data = merge(merged_data, Fped,
+                      by = "ID", how = "left")
+  merged_data = merge(merged_data, Fg,
+                      by = "ID", how = "left")
+  
+  # Save metrics to scenario file
+  if (isTRUE(append)) {
+    write.table(merged_data, file_name, sep = ",", 
+                append = T, col.names = F,
+                quote = F, row.names = F)
+  } else {
+    write.table(merged_data, file_name, sep = ",", 
+                append = F, col.names = T,
+                quote = F, row.names = F)
+  }
+  
+  # Check correlations
+  cli_alert_info(paste0("\nCorrelation AlphaSimR EBV and GV: ", 
+                        round(cor(merged_data$EBV, merged_data$GV),2)))
+  cli_alert_info(paste0("\nCorrelation BLUPF90 EBV and GV: ", 
+                        round(cor(merged_data$solution, merged_data$GV),2)))
+  cli_alert_info(paste0("\nCorrelation AlphaSimR EBV and BLUPF90 EBV: ", 
+                        round(cor(merged_data$EBV, merged_data$solution),2)))
+  cli_alert_info(paste0("\nCorrelation Fped and Fg: ", 
+                        round(cor(merged_data$Fped, merged_data$Fg),2)))
+  
+  # If a fraction was passed for EBV, calculate the number of
+  # animals to select
+  # males
+  if (top_ebv[1]<1) {
+    nMales = nrow(merged_data[merged_data$sex == "M",])
+    selectMales = ceiling(nMales * top_ebv[1]) # round up
+  } else {selectMales = top_ebv[1]}
+  
+  # females
+  if (top_ebv[2]<1) {
+    nFemales = nrow(merged_data[merged_data$sex == "F",])
+    selectFemales = ceiling(nFemales * top_ebv[2]) # round up
+  } else {selectFemales = top_ebv[2]}
+  
+  # Method 1
+  # Select animals based on BLUPF90 GEBV
+  if (method == 1) {
+    males = merged_data %>%
+      select(ID, sex, solution) %>% 
+      filter(sex == "M") %>%
+      arrange(desc(solution)) %>% 
+      slice_head(n=selectMales)
+    
+    females = merged_data %>%
+      select(ID, sex, solution) %>%
+      filter(sex == "F") %>%
+      arrange(desc(solution)) %>% 
+      slice_head(n=selectFemales)
+    
+  } else if (method == 2) {
+    # Select animals based on BLUPF90 EBV and Fped
+    males = merged_data %>% 
+      select(ID, sex, solution, Fped) %>%
+      filter(sex == "M") %>% 
+      filter(Fped <= max_F) %>% 
+      arrange(desc(solution)) %>% 
+      slice_head(n=selectMales)
+    
+    females = merged_data %>% 
+      select(ID, sex, solution, Fped) %>%
+      filter(sex == "F") %>% 
+      filter(Fped <= max_F) %>% 
+      arrange(desc(solution)) %>% 
+      slice_head(n=selectFemales)
+    
+  } else if (method == 3) {
+    # Select animals based on BLUPF90 EBV and Fg
+    males = merged_data %>% 
+      select(ID, sex, solution, Fg) %>%
+      filter(sex == "M") %>% 
+      filter(Fg <= max_F) %>% 
+      arrange(desc(solution)) %>% 
+      slice_head(n=selectMales)
+    
+    females = merged_data %>% 
+      select(ID, sex, solution, Fg) %>%
+      filter(sex == "F") %>% 
+      filter(Fg <= max_F) %>% 
+      arrange(desc(solution)) %>% 
+      slice_head(n=selectFemales)
+    
+  } else {cli_alert_danger("\nSelection method not identified!\n")}
+  
+  male_parents = pop[pop@id %in% as.character(males$ID)]
+  female_parents = pop[pop@id %in% as.character(females$ID)]
+  
+  # Check the number of selected animals
+  if (male_parents@nInd != selectMales) {
+    cli_alert_warning("The number of selected males is different than the required.")
+  }
+  
+  if (female_parents@nInd != selectFemales){
+    cli_alert_warning("The number of selected females is different than the required.")
+  }
+  
+  cli_alert_info(paste0("Mean EBV of the population: ",
+                        round(mean(merged_data$solution), 2)))
+  cli_alert_info(paste0("Mean EBV of selected males: ",
+                        round(mean(males$solution), 2)))
+  cli_alert_info(paste0("Mean EBV of selected females: ",
+                        round(mean(females$solution), 2)))
+  
+  parents = c(male_parents, female_parents)
+  
+  return(parents)
 }
