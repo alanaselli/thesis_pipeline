@@ -443,7 +443,9 @@ crossPops = function(
 }
 
 # ---- runBLUPF90 ----
-runBLUPF90 = function(ped_file, min_gen){
+runBLUPF90 = function(ped_file, 
+                      param_card, # "renum.txt"
+                      min_gen){
   
   # Prepare files for RENUMF90
   setwd("05_BLUPF90/")
@@ -467,7 +469,7 @@ runBLUPF90 = function(ped_file, min_gen){
   # Run RENUMF90
   cli_alert_info("\nRunning RENUMF90.\n")
   
-  system(command = "renumf90", input = "renum.txt")
+  system(command = "renumf90", input = param_card)
   
   # Run BLUPF90
   cli_alert_info("\nRunning BLUPF90.\n")
@@ -563,7 +565,7 @@ selectCandidates = function(pop,
   } else {selectFemales = top_ebv[2]}
   
   # Method 1
-  # Select animals based on BLUPF90 EBV
+  # Select animals based on BLUPF90 GEBV
   if (method == 1) {
     males = merged_data %>%
       select(ID, sex, solution) %>% 
