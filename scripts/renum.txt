@@ -21,4 +21,5 @@ FILE_POS
 1 2 3 0 0
 (CO)VARIANCES # its variance component
 0.5 # guess
+OPTION PED_DEPTH 10
 OPTION origID
