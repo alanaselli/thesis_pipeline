@@ -2,7 +2,12 @@ library(sys)
 library(AlphaSimR)
 library(dplyr)
 library(cli)
-source("scripts/AlphaSimR_addOn.R")
+
+AlphaSimR_addOn = list.files("scripts/AlphaSimR_addOn/", full.names = T)
+for (script in AlphaSimR_addOn) {
+    source(script)
+}
+rm(AlphaSimR_addOn, script)
 
 cli_h1("\nInitiating data simulation\n")
 
@@ -21,6 +26,7 @@ founderGenomes = runMacs2(
 
 SP = SimParam$new(founderGenomes)
 SP$setSexes("yes_sys")
+#SP$setTrackPed(TRUE)
 SP$addSnpChip(nSnpPerChr = 950)
 
 # Add simple additive trait
@@ -29,7 +35,7 @@ SP$setVarE(h2 = 0.3)
 
 # ---- Generate initial populations ----
 founderPop = newPop(founderGenomes)
-founderPop@id = add_prefix(founderPop, "A")
+#founderPop@id = add_prefix(founderPop, "A")
 year = 0
 
 rec_data(paste0(geno_path,"pedigree.txt"), founderPop, 
@@ -46,7 +52,7 @@ expandedPop = randCross(
     nProgeny = 1
 )
 rm(founderPop, founderGenomes)
-expandedPop@id = add_prefix(expandedPop, "B")
+#expandedPop@id = add_prefix(expandedPop, "B")
 year = year + 1
 
 rec_data(paste0(geno_path,"pedigree.txt"), expandedPop, 
@@ -60,7 +66,7 @@ for (gen in 1:10) {
         nCrosses = nCrosses,
         nProgeny = 1
     )
-    expandedPop@id = add_prefix(expandedPop, "B")
+    #expandedPop@id = add_prefix(expandedPop, "B")
     year = year + 1
     rec_data(paste0(geno_path,"pedigree.txt"), expandedPop, 
              "Expanded", year, append = TRUE)
@@ -72,88 +78,189 @@ cli_alert_info(paste0("\n",expandedPop@nInd,
 # ---- Recent Population ----
 
 cli_h2("\nGenerating recent population.\n")
-year = year + 1
-recentPop = makeRecentPop(previous_pop = expandedPop, 
-                          males_each_year = c(400,100), 
-                          females_each_year = c(250,150,75,25), 
+
+recent_pop_list = makeRecentPop(previous_pop = expandedPop, 
+                          males_each_year = c(40,10), 
+                          females_each_year = c(300,250,200,150,100), 
                           nCrosses = 1000, 
                           year = year,
                           years_of_breeding = 10,
-                          addPrefix = "C",
+                          return_breeding_groups = TRUE,
                           rec_data_param = list(paste0(geno_path,"pedigree.txt"),
                                                 "Recent",
                                                 TRUE))
-recentPop = recentPop[[1]]
-
 year = year + 10
 
-rm(expandedPop)
+# Progeny and parents except for oldest groups
+recentPop = mergePops(recent_pop_list[c(1,2,4:7)])
+
+rm(expandedPop, recent_pop_list)
 
 # Save genotypes
+# Include sires and dams from older generations
 writePlink(recentPop, paste0(geno_path,"recent"))
 
 # Change positions in map file
 adjust_pos("01_genotypes/recent.map",
            c(950), c(1e8))
 
+# Prepare SNP file of recent
+system(command="./scripts/prepare_snp_file.sh 01_genotypes/recent.ped 01_genotypes/new_map.map 05_BLUPF90/snp_file.txt")
+
 # ---- Start new selection process ----
-cli_alert_info("\nRunning evaluation for the last recent generation.\n")
-# Run BLUPF90
-runBLUPF90("recent.ped",
-           min_gen=year-10) # This function is very specific to my data
+year = year + 1
 
-year_1 = year+1
+# Traditional EBV and F
+fakePed = makeFakePed(recentPop)
 
-# ---- Scenario 1 ----
-cli_h3("\nInitiating scenario 1.\n")
-# Select candidates
-parents_1 = selectCandidates(recentPop, 
-                           "scenario_1/only_EBV.csv", 
-                           FALSE, method=1,
-                           top_ebv=c(50,250))
+fakePed[,c(4:7)] = 0
+fakePed$gen = year
 
-# Perform matings
-# 1000 crosses to generate 500 females and select 250 of them
-candidates_1 = randCross(parents_1, nCrosses = 1000)
+system(command="cp 01_genotypes/pedigree.txt scenario_01/")
 
-# Save pedigree data
-cli_alert_info("\nRecording data for gen 1 of scenario 1.\n")
-rec_data(paste0(geno_path,"pedigree.txt"), 
-         candidates_1, "scenario_1", year_1, append = TRUE)
+write.table(fakePed,"scenario_01/pedigree.txt",
+            col.names = F, append = T,
+            row.names = F, quote = F)
 
-# Save genotypes
-writePlink(candidates_1, paste0(geno_path,"sc_1_gen_1"))
+system(command="./scripts/extract_ped.sh scenario_01/pedigree.txt 05_BLUPF90/dat1.txt 05_BLUPF90/ped1.txt 10")
 
-# Continue this process for 10 generations
-for (i in 1:10) {
-    cli_alert_info(paste0("\nInitiating gen ",i," of scenario 1.\n"))
-    year_1=year_1+1
-    ped_name = paste0("sc_1_gen_",i)
+# Run BLUPF90 without genomic data
+runBLUPF90(param_card="renum.txt")
+
+# Read EBVs
+BLUPF90_EBVs = read.table("05_BLUPF90/solutions.orig", header = T,
+                          colClasses = c("integer","integer",
+                                         "integer","character",
+                                         "numeric"))
+
+# Read Fped
+Fped = read.table("05_BLUPF90/renf90.inb",
+                  col.names = c("ID","Fped","delete"),
+                  colClasses = c("character","numeric","numeric"))
+Fped = Fped[,c(1,2)]
+
+# Run BLUPF90 with genomic data
+runBLUPF90(param_card="renum_genomic.txt")
+
+# Fit RR-BLUP model for genomic predictions (candidates)
+BLUP = GBLUP_AlphaSimR(recentPop)
+
+# Read Fg
+Fg = read.table("05_BLUPF90/DiagGOrig.txt",
+                col.names = c("ID","Fg"),
+                colClasses = c("character","numeric"))
+
+# Merge dataframes (candidates)
+candidates_data = merge(BLUP, BLUPF90_EBVs[,c("original_id","solution")],
+                        by.x = "ID", by.y = "original_id",
+                        all.x = TRUE)
+candidates_data = merge(candidates_data, Fped,
+                        by = "ID", all.x = TRUE)
+
+# Save metrics to scenario file
+write.table(candidates_data, "scenario_01/candidates_metrics.txt",
+            append = F, col.names = T,
+            quote = F, row.names = F)
+
+# Merge dataframes (progeny)
+progeny_data = merge(fakePed[,c(1:3,8)], BLUPF90_EBVs[,c("original_id","solution")],
+                     by.x = "ID", by.y = "original_id",
+                     all.x = TRUE)
+progeny_data = merge(progeny_data, Fped,
+                     by = "ID", all.x = TRUE)
+
+write.table(progeny_data,"scenario_01/fakeProgeny.txt",
+            append = F, col.names = T,
+            quote = F, row.names = F)
+
+# Pre-selection of male candidates
+worse_EBVs = candidates_data %>% 
+    filter(sex == "M") %>% 
+    slice_min(solution, prop = 0.2) %>% # worst 20% by BLUPF90 EBV
+    select(ID)
     
-    # Run BLUPF90
-    runBLUPF90(paste0(ped_name,".ped"),
-               min_gen=year_1-10)
+progeny_data = progeny_data %>% 
+    filter(!sire %in% worse_EBVs$ID)
+
+# Assign groups
+candidates_year = data.frame(id=recentPop@id, 
+                             year=unname(unlist(recentPop@misc))) %>% 
+    mutate(group = dense_rank(desc(year))) %>% 
+    select(!year)
+
+progeny_data = merge(progeny_data, candidates_year, 
+                     by.x = "dam", by.y = "id") %>% 
+    rename(dam_group = group)
+progeny_data = merge(progeny_data, candidates_year,
+                     by.x = "sire", by.y = "id") %>% 
+    rename(sire_group = group)
+
+
+# 1st remove matings with high Fped
+# 2nd rank matings by EBV and Fped
+Fped_percentage = 0.2
+progeny_data = progeny_data %>% 
+    slice_min(Fped, prop = Fped_percentage) %>%  # take only 20% of matings with lowest Fped
+    arrange(desc(round(solution,2)),Fped)
+
+length(unique(progeny_data$dam)) # there are 1400 females left (good)
+
+# Split each female group in a new df
+#list_of_dfs = split(progeny_data, progeny_data$dam_group)
+#matings_per_group = c(300,250,200,150,100)
+
+# Select matings
+number_of_matings = 0
+matings = progeny_data[0,]
+
+#sire_counts = data.frame(sire=character(0), count=integer(0))
+
+group_counts = data.frame(group=c(1,2,1:5), 
+                          sex=c("M","M",rep("F",5)), 
+                          count=0,
+                          max=c(40,10,c(300,250,200,150,100)))
+#df = list_of_dfs[[1]]
+df = progeny_data
+while (nrow(matings)<1000) {
+    # Select the first sire
+    sel_sire = df[1,'sire']
     
-    # Select candidates
-    parents_1 = selectCandidates(candidates_1, 
-                                 paste0("scenario_1/only_EBV.csv"), 
-                                 TRUE, method=1,
-                                 top_ebv=c(50,250))
+    # Select the first 20 matings of that sire
+    sire_matings = df %>% 
+        filter(sire == sel_sire) %>% 
+        slice_head(n=20)
     
-    # Perform matings
-    candidates_1 = randCross(parents_1, nCrosses = 1000)
+    # Remove dams from selection pool
+    df = df[!df$dam %in% sire_matings$dam,]
     
-    # Save pedigree data
-    rec_data(paste0(geno_path,"pedigree.txt"), 
-             candidates_1, "scenario_1", year_1, append = TRUE)
+    # Add count to male group
+    male_group = group_counts$sex == "M" & group_counts$group == sire_matings[1,'sire_group']
+    group_counts$count[male_group] = group_counts$count[male_group]+1
     
-    # Save genotypes
-    ped_name = paste0("sc_1_gen_",i+1)
-    writePlink(candidates_1, paste0(geno_path,ped_name))
+    # Add counts to female groups
+    dam_counts = table(sire_matings$dam_group)
+    female_group = group_counts$group %in% names(dam_counts) & group_counts$sex == "F"
+    group_counts$count[female_group] = group_counts$count[female_group] + dam_counts
+
+    matings = rbind(matings, sire_matings)
+    
+    # Check constraints
+    # Max group counts
+    for (s in c("M","F")) {
+        if (s == "M") {groups = 1:2} else {groups = 1:5}
+        for (g in groups) {
+            g_count = group_counts$count[group_counts$sex == s & group_counts$group == g]
+            g_max = group_counts$max[group_counts$sex == s & group_counts$group == g]
+            if (g_count > g_max) {
+                if (s == "M") {
+                    df = df[!df$sire_group == g,]
+                } else {df = df[!df$dam_group == g,]}
+            }
+        }
+    }
 }
 
-rm(parents_1, candidates_1)
-cli_alert_success("\nScenario 1 completed.\n")
+# Check for repeated females
+which(duplicated(matings$dam))
 
 cli_alert_success("All processes of the simulation are completed.")
-
