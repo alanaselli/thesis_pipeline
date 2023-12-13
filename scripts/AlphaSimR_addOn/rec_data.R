@@ -4,7 +4,9 @@ library(dplyr)
 # ---- rec_data ----
 # Write general data from simulation
 
-rec_data = function(file, pop, pop_name, gen, append = TRUE) {
+rec_data = function(file, pop, pop_name, 
+                    gen=unlist(getMisc(expandedPop, "yearOfBirth")), 
+                    append = TRUE) {
     
     ped_rec = cbind(pop@id, pop@father, pop@mother, pop_name,
                     pop@sex, pop@gv, pop@pheno, gen)
