@@ -195,7 +195,6 @@ progeny_data = merge(progeny_data, candidates_year,
                      by.x = "sire", by.y = "id") %>% 
     rename(sire_group = group)
 
-
 # 1st remove matings with high Fped
 # 2nd rank matings by EBV and Fped
 Fped_percentage = 0.2
@@ -205,21 +204,14 @@ progeny_data = progeny_data %>%
 
 length(unique(progeny_data$dam)) # there are 1400 females left (good)
 
-# Split each female group in a new df
-#list_of_dfs = split(progeny_data, progeny_data$dam_group)
-#matings_per_group = c(300,250,200,150,100)
-
 # Select matings
-number_of_matings = 0
 matings = progeny_data[0,]
-
-#sire_counts = data.frame(sire=character(0), count=integer(0))
 
 group_counts = data.frame(group=c(1,2,1:5), 
                           sex=c("M","M",rep("F",5)), 
                           count=0,
                           max=c(40,10,c(300,250,200,150,100)))
-#df = list_of_dfs[[1]]
+
 df = progeny_data
 while (nrow(matings)<1000) {
     # Select the first sire
@@ -232,6 +224,9 @@ while (nrow(matings)<1000) {
     
     # Remove dams from selection pool
     df = df[!df$dam %in% sire_matings$dam,]
+    
+    # Remove sire from selection pool
+    df = df[!df$sire == sel_sire,]
     
     # Add count to male group
     male_group = group_counts$sex == "M" & group_counts$group == sire_matings[1,'sire_group']
@@ -261,6 +256,27 @@ while (nrow(matings)<1000) {
 }
 
 # Check for repeated females
-which(duplicated(matings$dam))
+if (length(unique(matings$dam)) < 1000) {
+    cli_alert_danger("Repeated females!")
+}
+
+# Breed new generation
+new_gen = makeCross(recentPop, as.matrix(matings[,c(2,1)]))
+
+year = year + 1
+new_gen = setMisc(x = new_gen,
+                  node = "yearOfBirth",
+                  value = year)
+
+# Merge new generation and older candidates
+older_candidates = c(unique(matings$sire[matings$sire_group == 1]),
+                     unique(matings$dam[!matings$dam_group == 5]))
+candidates_data = candidates_data %>% 
+    filter(ID %in% older_candidates) %>% 
+    merge(candidates_year, by.x = "ID", by.y = "id",
+          all.x = TRUE)
+candidates_data$group = candidates_data$group + 1
+
+candidates = mergePops(list(new_gen,recentPop[recentPop@id %in% older_candidates]))
 
 cli_alert_success("All processes of the simulation are completed.")
