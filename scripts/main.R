@@ -1,7 +1,12 @@
 library(sys)
 library(AlphaSimR)
 library(cli)
-source("scripts/AlphaSimR_addOn.R")
+
+AlphaSimR_addOn = list.files("scripts/AlphaSimR_addOn/", full.names = T)
+for (script in AlphaSimR_addOn) {
+    source(script)
+}
+rm(AlphaSimR_addOn, script)
 
 geno_path = "01_genotypes/"
 

@@ -5,13 +5,21 @@ set -euo pipefail
 
 # Check for the correct number of command-line arguments
 if [ "$#" -ne 3 ]; then
-  echo "Usage: $0 ped_file map_file output_file"
+  echo "Usage: $0 ped_file map_file output_file [duplicated]"
   exit 1
 fi
 
 ped="$1"
 map="$2"
 output_file="$3"
+# duplicated="$4"
+# 
+# # If duplicated is provided
+# if [ -z "duplicated" ]; then
+#   # Remove duplicate individuals
+#   awk '!seen[$2]++' $ped > ped.temp
+#   mv ped.temp $ped
+# fi
 
 # Convert genotypes to 0125
 awk '{print $2}' $map > outfile.temp

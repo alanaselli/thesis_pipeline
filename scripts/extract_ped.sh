@@ -21,9 +21,7 @@ fi
 if [ -z "$filter_value" ]; then
   cp $input_file out_temp
 else
-  #awk -v col="8" -v value="$filter_value" '{if ($col > value) print}' "$input_file" > "out_temp"
   awk -v col="8" '{if ($col >= (max - value + 1)) print}' max=$(awk -v col="8" 'NR > 1 {print $col}' "$input_file" | sort -n | tail -n 1) value="$filter_value" "$input_file"> "out_temp"
-
 fi
 
 # Delete header and save to output_file

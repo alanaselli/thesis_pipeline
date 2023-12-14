@@ -1,4 +1,4 @@
-mate_selection_EBV_Fped = function(initialPop,
+mate_selection_EBV_Fped = function(pop,
                                    year,
                                    scenario_folder,
                                    pre_selection_males_porc = 0.8, # percentage to remove
@@ -8,20 +8,21 @@ mate_selection_EBV_Fped = function(initialPop,
                                    nMatings = 1000,
                                    nMatings_per_sire=20
                                    ){
-    fakePed = makeFakePed(initialPop)
+    fakePed = makeFakePed(pop)
     
     fakePed[,c(4:7)] = 0
     fakePed$gen = year
     
-    system(command=paste0("cp 01_genotypes/pedigree.txt ",scenario_folder))
+    system(command=paste0("cp ",scenario_folder,"pedigree.txt ",
+                          scenario_folder,"pedigree_with_fakes.txt"))
     
-    write.table(fakePed,paste0(scenario_folder,"pedigree.txt"),
+    write.table(fakePed,paste0(scenario_folder,"pedigree_with_fakes.txt"),
                 col.names = F, append = T,
                 row.names = F, quote = F)
     
-    system(command=pasteo0("./scripts/extract_ped.sh ",
+    system(command=paste0("./scripts/extract_ped.sh ",
                            scenario_folder,
-                           "pedigree.txt 05_BLUPF90/dat1.txt 05_BLUPF90/ped1.txt 10"))
+                           "pedigree_with_fakes.txt 05_BLUPF90/dat1.txt 05_BLUPF90/ped1.txt 10"))
     
     # Run BLUPF90 without genomic data
     runBLUPF90(param_card="renum.txt")
@@ -42,7 +43,7 @@ mate_selection_EBV_Fped = function(initialPop,
     runBLUPF90(param_card="renum_genomic.txt")
     
     # Fit RR-BLUP model for genomic predictions (candidates)
-    BLUP = GBLUP_AlphaSimR(initialPop)
+    BLUP = GBLUP_AlphaSimR(pop)
     
     # Read Fg
     Fg = read.table("05_BLUPF90/DiagGOrig.txt",
@@ -55,6 +56,10 @@ mate_selection_EBV_Fped = function(initialPop,
                             all.x = TRUE)
     candidates_data = merge(candidates_data, Fped,
                             by = "ID", all.x = TRUE)
+    candidates_data = merge(candidates_data, Fg,
+                            by = "ID", all.x = TRUE)
+    
+    rm(BLUP,Fg)
     
     cli_alert_info(paste0("\nTotal number of candidates: ",nrow(candidates_data)))
     
@@ -69,6 +74,8 @@ mate_selection_EBV_Fped = function(initialPop,
                          all.x = TRUE)
     df = merge(df, Fped, by = "ID", all.x = TRUE)
     
+    rm(fakePed, BLUPF90_EBVs, Fped)
+    
     write.table(df,paste0(scenario_folder,"fakeProgeny.txt"),
                 append = F, col.names = T,
                 quote = F, row.names = F)
@@ -82,9 +89,11 @@ mate_selection_EBV_Fped = function(initialPop,
     df = df %>% 
         filter(sire %in% best_EBVs$ID)
     
+    rm(best_EBVs)
+    
     # Assign groups
-    candidates_year = data.frame(id=initialPop@id, 
-                                 year=unname(unlist(initialPop@misc))) %>% 
+    candidates_year = data.frame(id=pop@id, 
+                                 year=unname(unlist(pop@misc))) %>% 
         mutate(group = dense_rank(desc(year))) %>% 
         select(!year)
     
@@ -94,6 +103,7 @@ mate_selection_EBV_Fped = function(initialPop,
     df = merge(df, candidates_year,
                 by.x = "sire", by.y = "id") %>% 
                 rename(sire_group = group)
+    rm(candidates_year)
     
     # 1st remove matings with high Fped
     # 2nd rank matings by EBV and Fped
@@ -166,21 +176,20 @@ mate_selection_EBV_Fped = function(initialPop,
     }
     
     # Breed new generation
-    new_gen = makeCross(initialPop, as.matrix(matings[,c(2,1)]))
+    new_gen = makeCross(pop, as.matrix(matings[,c(2,1)]))
     
-    year = year + 1
     new_gen = setMisc(x = new_gen,
                       node = "yearOfBirth",
                       value = year)
     
     # Merge new generation and older candidates
-    older_candidates = c(unique(matings$sire[matings$sire_group == 1]),
+    older_candidates = c(unique(matings$sire[!matings$sire_group == male_groups[length(male_groups)]]),
                          unique(matings$dam[!matings$dam_group == female_groups[length(female_groups)]]))
-    candidates_data = candidates_data %>% 
-        filter(ID %in% older_candidates) %>% 
-        merge(candidates_year, by.x = "ID", by.y = "id",
-              all.x = TRUE)
-    candidates_data$group = candidates_data$group + 1
     
-    candidates = mergePops(list(new_gen,initialPop[initialPop@id %in% older_candidates]))
+    candidates_data = candidates_data %>% 
+        filter(ID %in% older_candidates)
+    
+    candidates = mergePops(list(new_gen,pop[pop@id %in% older_candidates]))
+    
+    return(candidates)
 }

@@ -21,9 +21,10 @@ FILE_POS
 1 2 3 0 0
 SNP_FILE # SNP marker file
 snp_file.txt
+PED_DEPTH
+0
 (CO)VARIANCES # its variance component
 0.5 # guess
-OPTION PED_DEPTH 0
 OPTION saveDiagGOrig
 OPTION origID
 OPTION thrStopCorAG 0

@@ -3,7 +3,7 @@ library(dplyr)
 
 # ---- makeFakePed ----
 makeFakePed = function(pop) {
-    cli_alert_info("\nStart fake pedigree\n")
+    cli_alert_info("\nStart fake pedigree.\n")
     males = pop[pop@sex == "M"]
     females = pop[pop@sex == "F"]
     

@@ -19,7 +19,8 @@ ped1.txt
 FILE_POS
 # animal, sire and dam IDs with two 0s
 1 2 3 0 0
+PED_DEPTH
+0
 (CO)VARIANCES # its variance component
 0.5 # guess
-OPTION PED_DEPTH 0
 OPTION origID

@@ -1,6 +1,3 @@
-library(AlphaSimR)
-library(dplyr)
-
 # ---- makeRecentPop ----
 makeRecentPop = function(
         previous_pop,    
@@ -210,7 +207,13 @@ makeRecentPop = function(
             return_pop_list = c(return_pop_list, assign(as.character(gen), recent_pop), use.names=T)
         }
     }
-    cat("\nSimulation of recent generations is complete.")
+    if (isTRUE(return_breeding_groups)){
+        return_pop_list = c("last_gen"=return_pop_list, "sires"=list_of_sires, recursive=F, use.names=F)
+        return_pop_list = c(return_pop_list, "dams"=list_of_dams, recursive=F, use.names=F)
+    }
+    
+    cli_alert_info(paste0("\nLast year: ",year,".\n"))
+    cli_alert_success("\nSimulation of recent generations is complete.\n")
     
     return(return_pop_list)
 }
