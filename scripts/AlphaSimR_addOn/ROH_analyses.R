@@ -1,14 +1,16 @@
 library(detectRUNS)
 
 ROH_analyses = function(pop,
-                        save_to){
+                        generation,
+                        scenario,
+                        ped,
+                        map="01_genotypes/new_map.map",
+                        save_to="03_ROH/"){
     
-    cli_alert_info(paste0("\nStarting ROH analysis for ",deparse(substitute(pop)),"\n"))
+    pop_name = deparse(substitute(pop))
+    cli_alert_info(paste0("\nStarting ROH analysis for ",pop_name,".\n"))
     
-    ped = paste0('01_genotypes/',FILE,'.ped')
-    map = "01_genotypes/new_map.map"
-    #map = paste0('01_genotypes/',FILE,'.map')
-    out = paste0('03_ROH/',FILE)
+    out = paste0(save_to,scenario,"_",generation)
     
     # ---- Consecutive runs approach ----
     
@@ -34,37 +36,13 @@ ROH_analyses = function(pop,
     # Save Froh
     FROH = summaryList_CR$result_Froh_genome_wide
     
-    write.table(FROH, paste0(out,"_FROH.txt"), 
-                quote = F, row.names = F)
-    
     # Save SNP in run
     SNPRUN = summaryList_CR$SNPinRun
     
-    write.table(SNPRUN, paste0(out,"_SNPRUN.txt"), 
+    write.table(SNPRUN, paste0(out,"_SNPinRun.txt"), 
                 quote = F, row.names = F)
     
-    # topRuns <- tableRuns(
-    #     runs =  consecutiveRuns, genotypeFile = ped, mapFile = map, 
-    #     threshold = 0.5)
-    
-    # ---- Plots ----
-    plot_Runs(runs = consecutiveRuns, 
-              savePlots = T, outputName = out)
-    # Sliding windows approach captures more small sized ROHs
-    
-    plot_StackedRuns(runs = consecutiveRuns, 
-                     savePlots = T, outputName = out)
-    
-    plot_SnpsInRuns(
-        runs = consecutiveRuns[consecutiveRuns$chrom==1,], 
-        genotypeFile = ped, 
-        mapFile = map, savePlots = T, 
-        outputName = out)
-    
-    plot_manhattanRuns(
-        runs = consecutiveRuns[consecutiveRuns$group=='1',], 
-        genotypeFile = ped, mapFile = map,
-        savePlots = T, outputName = paste0(out,"_manhattanRuns"))
-    
     cli_alert_success("\nROH analyses completed.\n")
+    
+    return(FROH)
 }

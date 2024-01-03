@@ -1,6 +1,6 @@
-mate_selection_EBV_Fped = function(pop,
+mate_selection_EBV_Fped = function(pop = recentPop,
                                    year,
-                                   scenario_folder,
+                                   scenario_folder="scenario_02/",
                                    ped_ROH="recent.ped",
                                    pre_selection_males_porc = 0.8, # percentage to remove
                                    Fped_percentage = 0.2, # percentage to keep
@@ -9,12 +9,13 @@ mate_selection_EBV_Fped = function(pop,
                                    nMatings = 1000,
                                    nMatings_per_sire=20,
                                    append = TRUE
-                                   ){
-    if (append == TRUE) {
+){
+    if (isTRUE(append)) {
         col.names = FALSE
     } else {col.names = TRUE}
     
-    fakePed = makeFakePed(pop)
+    fakePed = makeFakeHaplos(dirToSave = scenario_folder,
+                             pop=pop, also_plink=TRUE)
     
     fakePed[,c(4:7)] = 0
     fakePed$gen = year
@@ -22,16 +23,41 @@ mate_selection_EBV_Fped = function(pop,
     system(command=paste0("cp ",scenario_folder,"pedigree.txt ",
                           scenario_folder,"pedigree_with_fakes.txt"))
     
+    # Append fake progenies in the pedigree
     write.table(fakePed,paste0(scenario_folder,"pedigree_with_fakes.txt"),
-                col.names = F, append = T,
+                col.names = FALSE, append = TRUE,
                 row.names = F, quote = F)
     
+    # Generate files for BLUPF90
     system(command=paste0("./scripts/extract_ped.sh ",
-                           scenario_folder,
-                           "pedigree_with_fakes.txt 05_BLUPF90/dat1.txt 05_BLUPF90/ped1.txt 10"))
+                          scenario_folder,
+                          "pedigree_with_fakes.txt 05_BLUPF90/dat1.txt 05_BLUPF90/ped1.txt 10"))
     
-    # Run BLUPF90 without genomic data
-    runBLUPF90(param_card="renum.txt")
+    # Fit RR-BLUP model for genomic predictions (candidates)
+    BLUP = GBLUP_AlphaSimR(pop)
+    
+    # For BLUPF90 I need all generations (recent)
+    # Merge genomic data from last generations with fake progeny (for BLUPF90)
+    system(command=paste0("cp ",scenario_folder,"recent.ped ",
+                          scenario_folder,"genotype_with_fakes.ped"))
+    system(command=paste0('plink --cow --ped ',
+                          scenario_folder,'genotype_with_fakes.ped --map ',
+                          scenario_folder,'new_map.map --merge ',
+                          scenario_folder,'fakeHaplos.ped ',
+                          scenario_folder,'new_map.map --make-bed --recode --out ',
+                          scenario_folder,'genotype_with_fakes'))
+    
+    # For PLINK I need only the candidates
+    # Merge genotypes (last gen and fake progeny, for ROH analysis)
+    system(command=paste0('plink --cow --ped ',
+                          scenario_folder,'last_gen.ped --map ',
+                          scenario_folder,'new_map.map --merge ',
+                          scenario_folder,'fakeHaplos.ped ',
+                          scenario_folder,'new_map.map --make-bed --recode --out ',
+                          scenario_folder,'ROH_analysis'))
+    
+    # Run BLUPF90 with genomic data
+    runBLUPF90(param_card="renum_genomic.txt")
     
     # Read EBVs
     BLUPF90_EBVs = read.table("05_BLUPF90/solutions.orig", header = T,
@@ -45,24 +71,17 @@ mate_selection_EBV_Fped = function(pop,
                       colClasses = c("character","numeric","numeric"))
     Fped = Fped[,c(1,2)]
     
-    # Run BLUPF90 with genomic data
-    runBLUPF90(param_card="renum_genomic.txt")
-    
-    # Fit RR-BLUP model for genomic predictions (candidates)
-    BLUP = GBLUP_AlphaSimR(pop)
-    
-    # ROH
-    FROH = ROH_analyses(pop = pop,
-                        scenario = "EBV_Fped",
-                        generation = year,
-                        ped = paste0(scenario_folder,ped_ROH),
-                        map="01_genotypes/new_map.map",
-                        save_to="03_ROH/")
-    
     # Read Fg
     Fg = read.table("05_BLUPF90/DiagGOrig.txt",
                     col.names = c("ID","Fg"),
                     colClasses = c("character","numeric"))
+    
+    # ROH
+    FROH = ROH_analyses(pop = pop,
+                        generation = year,
+                        ped = paste0(scenario_folder,ped_ROH),
+                        map="01_genotypes/new_map.map",
+                        save_to="03_ROH/")
     
     # Merge dataframes (candidates)
     candidates_data = merge(BLUP, BLUPF90_EBVs[,c("original_id","solution")],
@@ -84,11 +103,20 @@ mate_selection_EBV_Fped = function(pop,
                 append = append, col.names = col.names,
                 quote = F, row.names = F)
     
+    # ROH progeny
+    FROH = ROH_analyses(pop = (scenario_folder),
+                        generation = year,
+                        ped = paste0(scenario_folder,ped_ROH),
+                        map="01_genotypes/new_map.map",
+                        save_to="03_ROH/")
+    
     # Merge dataframes (progeny)
     df = merge(fakePed[,c(1:3,8)], BLUPF90_EBVs[,c("original_id","solution")],
-                         by.x = "ID", by.y = "original_id",
-                         all.x = TRUE)
+               by.x = "ID", by.y = "original_id",
+               all.x = TRUE)
     df = merge(df, Fped, by = "ID", all.x = TRUE)
+    df = merge(df, Fg, by = "ID", all.x = TRUE)
+    df = merge(df, FROH[,c(1,4)], by = "ID", all.x = TRUE)
     
     rm(fakePed, BLUPF90_EBVs, Fped)
     
@@ -114,11 +142,11 @@ mate_selection_EBV_Fped = function(pop,
         select(!year)
     
     df = merge(df, candidates_year, 
-                by.x = "dam", by.y = "id") %>% 
-                rename(dam_group = group)
+               by.x = "dam", by.y = "id") %>% 
+        rename(dam_group = group)
     df = merge(df, candidates_year,
-                by.x = "sire", by.y = "id") %>% 
-                rename(sire_group = group)
+               by.x = "sire", by.y = "id") %>% 
+        rename(sire_group = group)
     rm(candidates_year)
     
     # 1st remove matings with high Fped
@@ -173,7 +201,7 @@ mate_selection_EBV_Fped = function(pop,
         for (s in c("M","F")) {
             if (s == "M") {
                 groups = 1:length(male_groups)
-                } else {groups = 1:length(female_groups)}
+            } else {groups = 1:length(female_groups)}
             for (g in groups) {
                 g_count = group_counts$count[group_counts$sex == s & group_counts$group == g]
                 g_max = group_counts$max[group_counts$sex == s & group_counts$group == g]

@@ -12,7 +12,8 @@ fi
 original_file="$1"
 file_to_append="$2"
 
-cat file_to_append >> original_file
-column -s' ' -t original_file > file_to_append
+cat $file_to_append >> $original_file
+column -s' ' -t $original_file > temp.file
+mv temp.file $original_file
 
-echo "$2 was successfully appended to $1."
+echo "$file_to_append was successfully appended to $original_file."

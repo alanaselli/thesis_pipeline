@@ -3,7 +3,7 @@ library(AlphaSimR)
 library(dplyr)
 library(cli)
 
-AlphaSimR_addOn = list.files("scripts/AlphaSimR_addOn/", full.names = T)
+AlphaSimR_addOn = list.files("scripts/AlphaSimR_addOn", full.names = T)
 for (script in AlphaSimR_addOn) {
     source(script)
 }
@@ -112,30 +112,33 @@ adjust_pos("01_genotypes/recent.map",
 
 # ---- Start new selection process ----
 
-# Traditional EBV and F
+# GEBV and Fg
+
+scenario_folder = "scenario_02/"
 
 # Copy pedigree file to scenario folder
-system(command="cp 01_genotypes/pedigree.txt scenario_01/")
+system(command=paste0("cp 01_genotypes/pedigree.txt ",scenario_folder))
 
-# Copy genotyoes to scenario folder
-system(command="cp 01_genotypes/recent.ped scenario_01/")
-system(command="cp 01_genotypes/new_map.map scenario_01/")
+# Copy genotypes to scenario folder
+system(command=paste0("cp 01_genotypes/recent.ped ",scenario_folder))
+system(command=paste0("cp 01_genotypes/recent.ped ",scenario_folder,"last_gen.ped"))
+system(command=paste0("cp 01_genotypes/new_map.map ",scenario_folder))
 
 # Prepare SNP file of recent
-system(command="./scripts/prepare_snp_file.sh 01_genotypes/recent.ped 01_genotypes/new_map.map 05_BLUPF90/snp_file.txt")
+#system(command="./scripts/prepare_snp_file.sh 01_genotypes/recent.ped 01_genotypes/new_map.map 05_BLUPF90/snp_file.txt")
 
-scenario_01 = recentPop
+scenario_02 = recentPop
 
 for (gen in 1:10) {
     cli_alert_info(paste0("\nInitiating generation ",gen,
-                          " of scenario 1 (EBV + F).\n"))
+                          " of scenario 2 (EBV + F).\n"))
     year = year + 1
     
     if (gen == 1) {append = FALSE} else {append = TRUE}
     
-    scenario_01 = mate_selection_EBV_Fped(pop = scenario_01,
+    scenario_01 = mate_selection_GEBV_Fg(pop = scenario_02,
                                           year = year,
-                                          scenario_folder = "scenario_01/",
+                                          scenario_folder = scenario_folder,
                                           ped_ROH="recent.ped",
                                           pre_selection_males_porc = 0.8, # percentage to remove
                                           Fped_percentage = 0.2, # percentage to keep
