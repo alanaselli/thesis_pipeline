@@ -15,7 +15,7 @@ mate_selection_EBV_Fped = function(pop = recentPop,
     } else {col.names = TRUE}
     
     fakePed = makeFakeHaplos(dirToSave = scenario_folder,
-                             pop=pop, also_plink=TRUE)
+                             pop=pop, BLUPF90_format=FALSE)
     
     fakePed[,c(4:7)] = 0
     fakePed$gen = year
@@ -27,6 +27,13 @@ mate_selection_EBV_Fped = function(pop = recentPop,
     write.table(fakePed,paste0(scenario_folder,"pedigree_with_fakes.txt"),
                 col.names = FALSE, append = TRUE,
                 row.names = F, quote = F)
+    
+    # Convert raw progeny file to plink format
+    system(command=paste0("scripts/raw_to_plink.sh ",
+                          scenario_folder, "fakeHaplos_raw.txt ",
+                          scenario_folder, "fakeHaplos.ped"))
+    
+    # PAREI AQUI
     
     # Generate files for BLUPF90
     system(command=paste0("./scripts/extract_ped.sh ",

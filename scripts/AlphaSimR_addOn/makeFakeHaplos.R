@@ -30,67 +30,27 @@ makeFakeHaplos = function(dirToSave,
                               sub(".*_", "", combinations$m),
                               sub(".*_", "", combinations$f))
     
-    if (isFALSE(BLUPF90_format)) {
-        cli_alert_info("\nPreparing plink file.\n")
-        # Create plink format genotypes
-        # 0 0 -> 1 1
-        # 0 1 -> 1 2
-        # 1 0 -> 2 1
-        # 1 1 -> 2 2
-        # genotypes = matrix(ncol=ncol(haplo_males),
-        #                    nrow=nrow(combinations))
-        # 
-        # for (row_index in 1:nrow(combinations)) {
-        #     genotypes[row_index,]=paste0(haplo_males[combinations$m[row_index], ], 
-        #                                  haplo_females[combinations$f[row_index], ])
-        # }
-        # 
-        # genotypes = data.frame(ID = combinations$ID,
-        #                        geno = apply(genotypes, 1, 
-        #                                     function(row) paste(row, collapse = "")))
-        
-        geno = apply(combinations, 1, function(row) {
-            paste0(haplo_males[row[["m"]], ], haplo_females[row[["f"]], ])
-        })
-        
-        geno = t(geno)
-        
-        genotypes = data.frame(ID = combinations$ID,
-                               geno = apply(geno, 1,
-                                            function(row) paste(row, collapse = "")))
-        
-        write.table(genotypes,
-                    paste0(dirToSave,"fakeGenotypes.txt"),
-                    col.names = FALSE, quote = FALSE, row.names = FALSE)
-        
-        cli_alert_info("\nGenotypes successfuly created.\n")
-        
-        system(command = paste0("scripts/genotypes_to_plink.sh ",
-                                dirToSave,"fakeGenotypes.txt ",
-                                dirToSave,"fakeGenotypes.ped"))
-        cli_alert_success("\nGenotypes successfuly written in plink format.\n")
-    } else {
-        # Add corresponding rows and convert to matrix (0125 genotype)
-        # 0 0 -> 0
-        # 1 0 -> 1
-        # 1 1 -> 2
-        haplo_matrix <- haplo_males[combinations$m, ] + haplo_females[combinations$f, ]
-        
-        # Create a data frame with ID and the collapsed genotypes
-        fakeHaplos = data.frame(ID = combinations$ID,
-                                geno = apply(haplo_matrix, 1, 
-                                             function(row) paste(row, collapse = "")))
-        # Order by ID
-        fakeHaplos = fakeHaplos[order(fakeHaplos$ID),]
-        
-        # Save the genotypes in the appropriate format for BLUPF90
-        write.table(fakeHaplos,
-                    paste0(dirToSave,"fakeHaplos.txt"),
-                    quote=F, row.names = F, 
-                    col.names = F, sep = "\t")
-        
-        cli_alert_success("\nFake haplotypes created.\n")
-    }
+    # Add corresponding rows and convert to matrix
+    #  0  0 ->  0
+    # 0.5 0 -> 0.5
+    #  0  1 ->  1
+    # 0.5 1 -> 1.5
+    
+    haplo_males[haplo_males==1] = 0.5
+    
+    haplo_matrix = haplo_males[combinations$m, ] + haplo_females[combinations$f, ]
+    
+    cli_alert_info("\nHaplotype combinations were created.\n")
+    
+    rownames(haplo_matrix) = combinations$ID
+    
+    # Save the genotypes in the appropriate format for BLUPF90
+    write.table(haplo_matrix,
+                paste0(dirToSave,"fakeHaplos_raw.txt"),
+                quote=F, row.names = T, 
+                col.names = F)
+    
+    cli_alert_success("\nFake haplotypes created.\n")
     
     # Return pedigree
     return(combinations %>% 
