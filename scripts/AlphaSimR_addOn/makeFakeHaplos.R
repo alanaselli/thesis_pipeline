@@ -31,12 +31,12 @@ makeFakeHaplos = function(dirToSave,
                               sub(".*_", "", combinations$f))
     
     # Add corresponding rows and convert to matrix
-    #  0  0 ->  0
-    # 0.5 0 -> 0.5
-    #  0  1 ->  1
-    # 0.5 1 -> 1.5
+    # 0 0 -> 0
+    # 3 0 -> 3
+    # 0 1 -> 1
+    # 3 1 -> 4
     
-    haplo_males[haplo_males==1] = 0.5
+    haplo_males[haplo_males==1] = 3
     
     haplo_matrix = haplo_males[combinations$m, ] + haplo_females[combinations$f, ]
     
@@ -44,8 +44,10 @@ makeFakeHaplos = function(dirToSave,
     
     rownames(haplo_matrix) = combinations$ID
     
-    # Save the genotypes in the appropriate format for BLUPF90
-    write.table(haplo_matrix,
+    geno = apply(haplo_matrix, 1, function(row) paste(row, collapse = ""))
+    
+    # Save the genotypes
+    write.table(geno,
                 paste0(dirToSave,"fakeHaplos_raw.txt"),
                 quote=F, row.names = T, 
                 col.names = F)
