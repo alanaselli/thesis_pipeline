@@ -16,7 +16,8 @@ RUN apt-get -y install python3-pip
 RUN apt-get -y install less
 RUN apt-get -y install bsdmainutils
 RUN pip install pandas==2.0.3
-RUN apt-get install nano -y
+RUN apt-get -y install nano
+RUN apt-get -y install glances
 RUN mv /usr/bin/plink1.9 /usr/bin/plink
 
 ADD scripts/ /home/scripts/

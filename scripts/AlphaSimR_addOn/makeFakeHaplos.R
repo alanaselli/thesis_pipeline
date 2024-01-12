@@ -5,8 +5,7 @@ library(dplyr)
 makeFakeHaplos = function(dirToSave,
                           pop=NULL, 
                           malePop=NULL,
-                          femalePop=NULL,
-                          BLUPF90_format=FALSE){
+                          femalePop=NULL){
     
     cli_alert_info("\nStart fake haplotypes\n")
     

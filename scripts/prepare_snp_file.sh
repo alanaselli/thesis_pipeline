@@ -25,17 +25,21 @@ output_file="$3"
 awk '{print $2}' $map > outfile.temp
 sed 's/$/ 2/' outfile.temp > recode_alleles.txt
 
-plink --ped $ped --map $map --cow --recode A --recode-allele recode_alleles.txt --out plink_0125
+plink --ped $ped --map $map --cow --recode A --recode-allele recode_alleles.txt --allow-no-sex --out plink_0125
 
 rm outfile.temp
 
-# Format snp file to BLUPF90
+# Format snp file for BLUPF90
 awk '(NR>1)' plink_0125.raw > plink.temp
 awk '{$1=$3=$4=$5=$6="";gsub(FS "+",FS)}1' plink.temp > plink.temp2
 sed 's/^[ \t]*//' plink.temp2 > plink.temp3
 sed 's/ /,/' plink.temp3 > plink.temp4 
 sed 's/ //g' plink.temp4 > plink.temp5
-column -s',' -t plink.temp5 > $output_file
+sed 's/,/ /g' plink.temp5 > plink.temp6
+#column -s',' -t plink.temp5 > $output_file
+awk 'NR==FNR{for(i=1;i<=NF;i++) 
+        max[i] = length($i) > max[i] ? length($i) : max[i]; next} 
+{ for(i=1;i<=NF;i++) printf "%-"max[i]"s  ", $i; printf "\n"}' plink.temp6 plink.temp6 > $output_file
 
 rm *temp*
 

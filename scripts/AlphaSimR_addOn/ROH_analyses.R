@@ -36,6 +36,9 @@ ROH_analyses = function(pop,
     # Save Froh
     FROH = summaryList_CR$result_Froh_genome_wide
     
+    write.table(FROH, paste0(out,"_FROH.txt"), 
+                quote = F, row.names = F)
+    
     # Save SNP in run
     SNPRUN = summaryList_CR$SNPinRun
     

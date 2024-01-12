@@ -8,8 +8,6 @@ WEIGHT(S)
 
 RESIDUAL_VARIANCE
 0.7 # guess
-EFFECT # sex
-5 cross alpha
 EFFECT # animal
 1 cross alpha
 RANDOM

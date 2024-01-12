@@ -8,8 +8,6 @@ WEIGHT(S)
 
 RESIDUAL_VARIANCE
 0.7 # guess
-EFFECT # sex
-5 cross alpha
 EFFECT # animal
 1 cross alpha
 RANDOM
@@ -27,4 +25,4 @@ PED_DEPTH
 0.5 # guess
 OPTION saveDiagGOrig
 OPTION origID
-OPTION thrStopCorAG 0
+OPTION thrStopCorAG -1
