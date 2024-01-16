@@ -122,39 +122,35 @@ adjust_pos("01_genotypes/recent.map",
 
 # ---- Start new selection process ----
 
-# GEBV and Fg
+# GEBV and Froh
 
-scenario_folder = "scenario_02/"
+scenario_folder = "scenario_03/"
 
 # Copy pedigree file to scenario folder
 system(command=paste0("cp 01_genotypes/pedigree.txt ",scenario_folder))
 
 # Copy genotypes to scenario folder
 system(command=paste0("cp 01_genotypes/recent.ped ",scenario_folder))
-#system(command=paste0("cp 01_genotypes/recent.ped ",scenario_folder,"last_gen.ped"))
 system(command=paste0("cp 01_genotypes/new_map.map ",scenario_folder))
 
-# Prepare SNP file of recent
-#system(command="./scripts/prepare_snp_file.sh 01_genotypes/recent.ped 01_genotypes/new_map.map 05_BLUPF90/snp_file.txt")
-
-scenario_02 = recentPop
+scenario_03 = recentPop
 
 for (gen in 1:10) {
     
-    times = rbind(times, c(paste0("scenario2_","gen",gen), 
+    times = rbind(times, c(paste0("scenario3_","gen",gen), 
                            format(Sys.time(), "%Y-%m-%d %H:%M:%S")))
     
     cli_alert_info(paste0("\nInitiating generation ",gen,
-                          " of scenario 2 (EBV + F).\n"))
+                          " of scenario 3 (EBV + F).\n"))
     year = year + 1
     
     if (gen == 1) {append = FALSE} else {append = TRUE}
     
-    scenario_02 = mate_selection_GEBV_Fg(pop = scenario_02,
+    scenario_03 = mate_selection_GEBV_Froh(pop = scenario_03,
                                           year = year,
                                           scenario_folder = scenario_folder,
                                           pre_selection_males_porc = 0.8, # percentage to remove
-                                          Fg_percentage = 0.2, # percentage to keep
+                                          Froh_percentage = 0.2, # percentage to keep
                                           male_groups = males_each_year,
                                           female_groups = females_each_year,
                                           nMatings = nCrosses,
@@ -162,10 +158,10 @@ for (gen in 1:10) {
                                           append = append)
     
     # Take only the last generation to add records
-    last_gen = data.frame(id=scenario_02@id, 
-                            year=unname(unlist(scenario_02@misc)))
+    last_gen = data.frame(id=scenario_03@id, 
+                            year=unname(unlist(scenario_03@misc)))
     last_gen = last_gen[last_gen$year == year,]
-    record_data = scenario_02[scenario_02@id %in% last_gen$id]
+    record_data = scenario_03[scenario_03@id %in% last_gen$id]
     
     # Record pedigree
     rec_data(paste0(scenario_folder,"pedigree.txt"), 
@@ -173,13 +169,13 @@ for (gen in 1:10) {
              year, append = TRUE)
     
     # Save genotypes
-    writePlink(record_data, paste0(scenario_folder,"scenario_02"))
+    writePlink(record_data, paste0(scenario_folder,"scenario_03"))
     
     # Merge genotypes
     system(command=paste0('plink --cow --ped ',
                           scenario_folder,'recent.ped --map ',
                           scenario_folder,'new_map.map --merge ',
-                          scenario_folder,'scenario_02.ped ',
+                          scenario_folder,'scenario_03.ped ',
                           scenario_folder,'new_map.map --make-bed --recode --out ',
                           scenario_folder,'recent'))
     

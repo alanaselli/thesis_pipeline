@@ -1,8 +1,8 @@
-mate_selection_GEBV_Fg = function(pop = recentPop,
+mate_selection_GEBV_Froh = function(pop = recentPop,
                                    year,
-                                   scenario_folder="scenario_02/",
+                                   scenario_folder="scenario_03/",
                                    pre_selection_males_porc = 0.8, # percentage to remove
-                                   Fg_percentage = 0.2, # percentage to keep
+                                   Froh_percentage = 0.2, # percentage to keep
                                    male_groups = c(40,10),
                                    female_groups = c(300,250,200,150,100),
                                    nMatings = 1000,
@@ -77,11 +77,11 @@ mate_selection_GEBV_Fg = function(pop = recentPop,
                     col.names = c("ID","Fg"),
                     colClasses = c("character","numeric"))
     
-    # ROH (in this scenario, only candidates - for evaluation purposes)
-    FROH = ROH_analyses(pop = "scenario_02",
+    # ROH - candidates only
+    FROH = ROH_analyses(pop_name = "scenario_03",
                         generation = year,
                         ped = paste0(scenario_folder,"recent.ped"),
-                        scenario = "sc_02",
+                        scenario = "sc_03",
                         map="01_genotypes/new_map.map",
                         save_to="03_ROH/")
     
@@ -96,7 +96,7 @@ mate_selection_GEBV_Fg = function(pop = recentPop,
     candidates_data = merge(candidates_data, FROH[,c(1,4)],
                             by.x = "ID", by.y = "id", all.x = TRUE)
     
-    rm(BLUP,FROH)
+    rm(BLUP, FROH)
     
     cli_alert_info(paste0("\nTotal number of candidates: ",nrow(candidates_data)))
     
@@ -105,14 +105,23 @@ mate_selection_GEBV_Fg = function(pop = recentPop,
                 append = append, col.names = col.names,
                 quote = F, row.names = F)
     
+    # ROH - fake progeny only
+    FROH = ROH_analyses(pop_name = "scenario_03",
+                        generation = year,
+                        ped = paste0(scenario_folder,"fakeHaplos.ped"),
+                        scenario = "sc_03",
+                        map="01_genotypes/new_map.map",
+                        save_to="03_ROH/")
+    
     # Merge dataframes (progeny)
     df = merge(fakePed[,c(1:3,8)], BLUPF90_EBVs[,c("original_id","solution")],
                by.x = "ID", by.y = "original_id",
                all.x = TRUE)
     df = merge(df, Fped, by = "ID", all.x = TRUE)
     df = merge(df, Fg, by = "ID", all.x = TRUE)
+    df = merge(df, FROH[,c(1,4)], by.x = "ID", by.y = "id", all.x = TRUE)
     
-    rm(fakePed, BLUPF90_EBVs, Fped, Fg)
+    rm(fakePed, BLUPF90_EBVs, Fped, Fg, FROH)
     
     write.table(df,paste0(scenario_folder,"fakeProgeny.txt"),
                 append = append, col.names = col.names,
@@ -143,24 +152,24 @@ mate_selection_GEBV_Fg = function(pop = recentPop,
         rename(sire_group = group)
     rm(candidates_year)
     
-    # Summarise max Fg and mean GEBV for each mating
-    # 1st select X% of matings with the lowest Fg
-    # 2nd rank matings by GEBV and Fg
+    # Summarise max Froh and mean GEBV for each mating
+    # 1st select X% of matings with the lowest Froh
+    # 2nd rank matings by EBV and Froh
     
     df = df %>% 
         group_by(sire, dam) %>% 
-        summarise(max_Fg = max(Fg), 
+        summarise(max_Froh = max(Froh_genome), 
                   mean_GEBV = mean(solution),
                   dam_group = mean(dam_group),
                   sire_group = mean(sire_group)) %>% 
-        slice_min(max_Fg, prop = Fg_percentage) %>% 
-        arrange(desc(round(mean_GEBV,2)),max_Fg)
+        slice_min(max_Froh, prop = Froh_percentage) %>% 
+        arrange(desc(round(mean_GEBV,2)),max_Froh)
     
     df = as.data.frame(df)
     
-    cli_alert_info(paste0("Number of female candidates after Fg filter: ",
+    cli_alert_info(paste0("Number of female candidates after Froh filter: ",
                           length(unique(df$dam))))
-    cli_alert_info(paste0("Number of male candidates after Fg filter: ",
+    cli_alert_info(paste0("Number of male candidates after Froh filter: ",
                           length(unique(df$sire))))
     
     # Select matings

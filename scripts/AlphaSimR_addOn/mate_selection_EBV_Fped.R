@@ -1,7 +1,6 @@
 mate_selection_EBV_Fped = function(pop,
                                    year,
                                    scenario_folder,
-                                   ped_ROH="recent.ped",
                                    pre_selection_males_porc = 0.8, # percentage to remove
                                    Fped_percentage = 0.2, # percentage to keep
                                    male_groups = c(40,10),
@@ -52,10 +51,10 @@ mate_selection_EBV_Fped = function(pop,
     BLUP = GBLUP_AlphaSimR(pop)
     
     # ROH
-    FROH = ROH_analyses(pop = pop,
-                        scenario = "EBV_Fped",
+    FROH = ROH_analyses(pop = "scenario_01",
+                        scenario = "sc_01",
                         generation = year,
-                        ped = paste0(scenario_folder,ped_ROH),
+                        ped = paste0(scenario_folder,"recent.ped"),
                         map="01_genotypes/new_map.map",
                         save_to="03_ROH/")
     
@@ -73,7 +72,7 @@ mate_selection_EBV_Fped = function(pop,
     candidates_data = merge(candidates_data, Fg,
                             by = "ID", all.x = TRUE)
     candidates_data = merge(candidates_data, FROH[,c(1,4)],
-                            by = "ID", all.x = TRUE)
+                            by.x = "ID", by.y = "id", all.x = TRUE)
     
     rm(BLUP,Fg,FROH)
     
@@ -121,11 +120,13 @@ mate_selection_EBV_Fped = function(pop,
                 rename(sire_group = group)
     rm(candidates_year)
     
-    # 1st remove matings with high Fped
+    # 1st select X% of matings with the lowest Fped
     # 2nd rank matings by EBV and Fped
     df = df %>% 
-        slice_min(Fped, prop = Fped_percentage) %>%  # take only X% of matings with lowest Fped
+        slice_min(Fped, prop = Fped_percentage) %>% 
         arrange(desc(round(solution,2)),Fped)
+    
+    df = as.data.frame(df)
     
     cli_alert_info(paste0("Number of female candidates after Fped filter: ",
                           length(unique(df$dam))))
@@ -142,7 +143,25 @@ mate_selection_EBV_Fped = function(pop,
                               count=0,
                               max=c(male_groups,female_groups))
     
+    # ---- Define priorities ----
+    df$priority = 0
+    best_dams = df[!duplicated(df$dam),] %>% 
+        slice_head(n=sum(female_groups))
+    df$priority[!df$dam %in% best_dams$dam] = df$priority[!df$dam %in% best_dams$dam] + 1
+    
+    n_matings_each_dam = df %>% 
+        group_by(dam) %>% 
+        summarise(n = n())
+    
+    more_than_2 = df$dam %in% n_matings_each_dam$dam[n_matings_each_dam$n > 2]
+    only_2 = df$dam %in% n_matings_each_dam$dam[n_matings_each_dam$n == 2]
+    df[more_than_2,'priority'] = df[more_than_2,'priority']+2
+    df[only_2,'priority'] = df[only_2,'priority']+1
+    
     while (nrow(matings)<nMatings) {
+        # Order by priority
+        df = df[order(df$priority),]
+        
         # Select the first sire
         sel_sire = df[1,'sire']
         
@@ -170,28 +189,50 @@ mate_selection_EBV_Fped = function(pop,
         
         # Check constraints
         # Max group counts
-        for (s in c("M","F")) {
-            if (s == "M") {
+        for (sex in c("M","F")) {
+            if (sex == "M") {
                 groups = 1:length(male_groups)
-                } else {groups = 1:length(female_groups)}
-            for (g in groups) {
-                g_count = group_counts$count[group_counts$sex == s & group_counts$group == g]
-                g_max = group_counts$max[group_counts$sex == s & group_counts$group == g]
-                if (g_count > g_max) {
-                    if (s == "M") {
-                        df = df[!df$sire_group == g,]
-                    } else {df = df[!df$dam_group == g,]}
+            } else {groups = 1:length(female_groups)}
+            for (group in groups) {
+                g_count = group_counts$count[group_counts$sex == sex & group_counts$group == group]
+                g_max = group_counts$max[group_counts$sex == sex & group_counts$group == group]
+                if (g_count >= g_max) {
+                    if (sex == "M") {
+                        df[df$sire_group == group, 'priority'] = df[df$sire_group == group, 'priority'] + 1
+                    } else {
+                        df[df$dam_group == group,'priority'] = df[df$dam_group == group,'priority'] + 1
+                    }
                 }
             }
         }
     }
     
     # Check for repeated females
-    if (length(unique(matings$dam)) < 1000) {
+    if (length(unique(matings$dam)) < sum(female_groups)) {
         cli_alert_danger("\nRepeated females!\n")
     }
     
+    # Report selected groups
+    final_dam_groups = as.data.frame(table(matings$dam_group))
+    invisible(apply(final_dam_groups, 1, 
+                    function(row) cli_alert_info(paste0("\n",row["Freq"], 
+                                                        " Females selected from group ", 
+                                                        row["Var1"]), "\n")))
+    
+    final_sire_groups = as.data.frame(matings %>% 
+                                          group_by(sire) %>% 
+                                          summarise(n = n(), sire_group=mean(sire_group)))
+    
+    invisible(apply(as.data.frame(table(final_sire_groups$sire_group)), 1, 
+                    function(row) cli_alert_info(paste0("\n",row["Freq"], 
+                                                        " Males selected from group ", 
+                                                        row["Var1"]), "\n")))
+    cli_alert_info(paste0("\nMean of ", round(mean(final_sire_groups$n)),
+                          " (+/- ", round(sd(final_sire_groups$n)),
+                          ") progeny per sire.\n"))
+    
     # Breed new generation
+    cli_alert_info("\nBreeding new generation.\n")
     new_gen = makeCross(pop, as.matrix(matings[,c(2,1)]))
     
     new_gen = setMisc(x = new_gen,
@@ -199,8 +240,8 @@ mate_selection_EBV_Fped = function(pop,
                       value = year)
     
     # Merge new generation and older candidates
-    older_candidates = c(unique(matings$sire[!matings$sire_group == male_groups[length(male_groups)]]),
-                         unique(matings$dam[!matings$dam_group == female_groups[length(female_groups)]]))
+    older_candidates = c(unique(matings$sire[!matings$sire_group == length(male_groups)]),
+                         unique(matings$dam[!matings$dam_group == length(female_groups)]))
     
     candidates_data = candidates_data %>% 
         filter(ID %in% older_candidates)

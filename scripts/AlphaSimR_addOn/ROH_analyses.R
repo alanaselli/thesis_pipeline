@@ -1,13 +1,12 @@
 library(detectRUNS)
 
-ROH_analyses = function(pop,
+ROH_analyses = function(pop_name,
                         generation,
                         scenario,
                         ped,
                         map="01_genotypes/new_map.map",
                         save_to="03_ROH/"){
     
-    pop_name = deparse(substitute(pop))
     cli_alert_info(paste0("\nStarting ROH analysis for ",pop_name,".\n"))
     
     out = paste0(save_to,scenario,"_",generation)

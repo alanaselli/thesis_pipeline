@@ -21,7 +21,8 @@ sed -i '' -e 's/4/22/g' temp.file7
 sed -i '' -e 's/./& /g' temp.file7
 
 # Merge files
-paste -d' ' temp.file temp.file7 > "$output_file"
+paste -d' ' temp.file temp.file7 > temp.file.final
+cat temp.file.final | tr -s ' ' > "$output_file"
 
 rm *temp.file*
 

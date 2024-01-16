@@ -19,18 +19,18 @@ cli_h2("\nGenerating founder genomes.\n")
 
 founderGenomes = runMacs2(
     nInd = 100,
-    nChr = 1,
+    nChr = 5,
     Ne = 200,
-    segSites = 1000
+    segSites = c(1000,800,700,600,500)
 )
 
 SP = SimParam$new(founderGenomes)
 SP$setSexes("yes_sys")
 #SP$setTrackPed(TRUE)
-SP$addSnpChip(nSnpPerChr = 950)
+SP$addSnpChip(nSnpPerChr = c(950,780,700,600,500))
 
 # Add simple additive trait
-SP$addTraitA(nQtlPerChr = c(50), mean = 0, var = 1)
+SP$addTraitA(nQtlPerChr = c(50,20,0,0,0), mean = 0, var = 1)
 SP$setVarE(h2 = 0.3)
 
 # ---- Generate initial populations ----
@@ -62,8 +62,8 @@ expandedPop = setMisc(x = expandedPop,
 rec_data(paste0(geno_path,"pedigree.txt"), expandedPop, 
          "Expanded", year, append = TRUE)
 
-cli_progress_bar("Expanding population", total = 10)
-for (gen in 1:10) {
+cli_progress_bar("Expanding population", total = 5)
+for (gen in 1:5) {
     nCrosses = round(nCrosses*2)
     expandedPop = randCross(
         pop = expandedPop,
@@ -86,20 +86,24 @@ cli_alert_info(paste0("\n",expandedPop@nInd,
 
 cli_h2("\nGenerating recent population.\n")
 
+males_each_year = c(3,2)
+females_each_year = c(20,15,10,5)
+nCrosses = 50
+
 recent_pop_list = makeRecentPop(previous_pop = expandedPop, 
-                          males_each_year = c(40,10), 
-                          females_each_year = c(300,250,200,150,100), 
-                          nCrosses = 1000, 
-                          year = year,
-                          years_of_breeding = 10,
-                          return_breeding_groups = TRUE,
-                          rec_data_param = list(paste0(geno_path,"pedigree.txt"),
-                                                "Recent",
-                                                TRUE))
+                                males_each_year = males_each_year, 
+                                females_each_year = females_each_year, 
+                                nCrosses = nCrosses, 
+                                year = year,
+                                years_of_breeding = 10,
+                                return_breeding_groups = TRUE,
+                                rec_data_param = list(paste0(geno_path,"pedigree.txt"),
+                                                      "Recent",
+                                                      TRUE))
 year = year + 10
 
 # Progeny and parents except for oldest groups
-recentPop = mergePops(recent_pop_list[c(1,2,4:7)])
+recentPop = mergePops(recent_pop_list[c(1,2,4:6)])
 
 rm(expandedPop, recent_pop_list)
 
@@ -108,11 +112,12 @@ writePlink(recentPop, paste0(geno_path,"recent"))
 
 # Change positions in map file
 adjust_pos("01_genotypes/recent.map",
-           c(950), c(1e8))
+           c(950,780,700,600,500), c(1.2e8,1e8,9e7,7e7,5e7))
 
 # ---- Start new selection process ----
 
 # Traditional EBV and F
+scenario_folder = "scenario_01/"
 
 # Copy pedigree file to scenario folder
 system(command="cp 01_genotypes/pedigree.txt scenario_01/")
@@ -120,9 +125,6 @@ system(command="cp 01_genotypes/pedigree.txt scenario_01/")
 # Copy genotyoes to scenario folder
 system(command="cp 01_genotypes/recent.ped scenario_01/")
 system(command="cp 01_genotypes/new_map.map scenario_01/")
-
-# Prepare SNP file of recent
-system(command="./scripts/prepare_snp_file.sh 01_genotypes/recent.ped 01_genotypes/new_map.map 05_BLUPF90/snp_file.txt")
 
 scenario_01 = recentPop
 
@@ -135,14 +137,13 @@ for (gen in 1:10) {
     
     scenario_01 = mate_selection_EBV_Fped(pop = scenario_01,
                                           year = year,
-                                          scenario_folder = "scenario_01/",
-                                          ped_ROH="recent.ped",
+                                          scenario_folder = scenario_folder,
                                           pre_selection_males_porc = 0.8, # percentage to remove
                                           Fped_percentage = 0.2, # percentage to keep
-                                          male_groups = c(40,10),
-                                          female_groups = c(300,250,200,150,100),
-                                          nMatings = 1000,
-                                          nMatings_per_sire=20,
+                                          male_groups = males_each_year,
+                                          female_groups = females_each_year,
+                                          nMatings = nCrosses,
+                                          nMatings_per_sire=10,
                                           append = append)
     
     # Take only the last generation to add records
