@@ -26,3 +26,4 @@ PED_DEPTH
 OPTION saveDiagGOrig
 OPTION origID
 OPTION thrStopCorAG -1
+OPTION use_yams

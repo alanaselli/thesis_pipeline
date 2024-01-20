@@ -29,10 +29,12 @@ RUN mv /home/scripts/renum.txt /home/05_BLUPF90/renum.txt
 RUN mv /home/scripts/renum_genomic.txt /home/05_BLUPF90/renum_genomic.txt
 
 RUN /usr/local/bin/R --no-restore --file=scripts/R_packages.R > scripts/R_packages.txt
-RUN chmod 755 scripts/run_pipeline.sh
-RUN chmod 755 scripts/run_simulation.sh 
-RUN chmod 755 05_BLUPF90/renumf90
-RUN chmod 755 05_BLUPF90/blupf90
+#RUN chmod 755 scripts/run_pipeline.sh
+#RUN chmod 755 scripts/run_simulation.sh 
+#RUN chmod 755 05_BLUPF90/renumf90
+#RUN chmod 755 05_BLUPF90/blupf90
+RUN chmod -R 755 scripts/
+RUN chmod -R 755 05_BLUPF90/
 
 RUN ulimit -s unlimited
 RUN export OMP_STACKSIZE=64M

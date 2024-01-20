@@ -20,10 +20,10 @@ mate_selection_GEBV_Fg = function(pop = recentPop,
     fakePed[,c(4:7)] = 0
     fakePed$gen = year
     
+    # Append fake progeny to the pedigree
     system(command=paste0("cp ",scenario_folder,"pedigree.txt ",
                           scenario_folder,"pedigree_with_fakes.txt"))
     
-    # Append fake progenies in the pedigree
     write.table(fakePed,paste0(scenario_folder,"pedigree_with_fakes.txt"),
                 col.names = FALSE, append = TRUE,
                 row.names = F, quote = F)
@@ -37,6 +37,8 @@ mate_selection_GEBV_Fg = function(pop = recentPop,
     system(command=paste0("./scripts/extract_ped.sh ",
                           scenario_folder,
                           "pedigree_with_fakes.txt 05_BLUPF90/dat1.txt 05_BLUPF90/ped1.txt 10"))
+    
+    cli_alert_info("\nStart evaluation of candidates.\n")
     
     # Fit RR-BLUP model for genomic predictions (candidates)
     BLUP = GBLUP_AlphaSimR(pop)
@@ -78,9 +80,9 @@ mate_selection_GEBV_Fg = function(pop = recentPop,
                     colClasses = c("character","numeric"))
     
     # ROH (in this scenario, only candidates - for evaluation purposes)
-    FROH = ROH_analyses(pop = "scenario_02",
+    FROH = ROH_analyses(pop_name = "scenario_02",
                         generation = year,
-                        ped = paste0(scenario_folder,"recent.ped"),
+                        ped = paste0(scenario_folder,"candidates.ped"),
                         scenario = "sc_02",
                         map="01_genotypes/new_map.map",
                         save_to="03_ROH/")
@@ -95,6 +97,7 @@ mate_selection_GEBV_Fg = function(pop = recentPop,
                             by = "ID", all.x = TRUE)
     candidates_data = merge(candidates_data, FROH[,c(1,4)],
                             by.x = "ID", by.y = "id", all.x = TRUE)
+    candidates_data$gen = year
     
     rm(BLUP,FROH)
     
@@ -127,12 +130,15 @@ mate_selection_GEBV_Fg = function(pop = recentPop,
     df = df %>% 
         filter(sire %in% best_EBVs$ID)
     
+    cli_alert_info(paste0("\nTotal number of male candidates after pre-selection: ",
+                          length(unique(df$sire)),".\n"))
+    
     rm(best_EBVs)
     
     # Assign groups
     candidates_year = data.frame(id=pop@id, 
                                  year=unname(unlist(pop@misc))) %>% 
-        mutate(group = dense_rank(desc(year))) %>% 
+        dplyr::mutate(group = dense_rank(desc(year))) %>% 
         select(!year)
     
     df = merge(df, candidates_year, 
