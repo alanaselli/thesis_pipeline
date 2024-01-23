@@ -135,6 +135,26 @@ mate_selection_EBV_Fped = function(pop,
     
     # 1st select X% of matings with the lowest Fped
     # 2nd rank matings by EBV and Fped
+    lowest_F = df %>% 
+        slice_min(Fped, prop = Fped_percentage) %>% 
+        select(ID, sire, dam)
+    
+    # While the number of female candidates is lower than the necessary number
+    # of females +20%, increase the selection threshold by 0.05
+    while (length(unique(lowest_F$dam)) < sum(female_groups)*1.2) {
+        Fped_percentage = Fped_percentage + 0.05
+        
+        lowest_F = df %>% 
+            slice_min(Fped, prop = Fped_percentage) %>% 
+            select(ID, sire, dam)
+        
+        cli_alert_info(paste0("\nF threshold increased to ",Fped_percentage,
+                              " to attend minimum number of female candidates.\n"))
+        if (Fped_percentage >= 1){
+            break
+        }
+    }
+    
     df = df %>% 
         slice_min(Fped, prop = Fped_percentage) %>% 
         arrange(desc(round(solution,2)),Fped)

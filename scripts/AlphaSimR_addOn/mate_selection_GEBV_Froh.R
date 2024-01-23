@@ -161,6 +161,26 @@ mate_selection_GEBV_Froh = function(pop = recentPop,
     # Summarise max Froh and mean GEBV for each mating
     # 1st select X% of matings with the lowest Froh
     # 2nd rank matings by EBV and Froh
+    lowest_F = df %>% 
+        group_by(sire, dam) %>% 
+        summarise(max_Froh = max(Froh_genome)) %>% 
+        slice_min(max_Froh, prop = Froh_percentage) %>%  
+        select(sire, dam)
+    
+    # While the number of female candidates is lower than the necessary number
+    # of females +20%, increase the selection threshold by 0.05
+    while (length(unique(lowest_F$dam)) < sum(female_groups)*1.2) {
+        Froh_percentage = Froh_percentage + 0.05
+        
+        lowest_F = df %>% 
+            group_by(sire, dam) %>% 
+            summarise(max_Froh = max(Froh_genome)) %>% 
+            slice_min(max_Froh, prop = Froh_percentage) %>%  
+            select(sire, dam)
+        
+        cli_alert_info(paste0("\nF threshold increased to ",Fg_percentage,
+                              " to attend minimum number of female candidates.\n"))
+    }
     
     df = df %>% 
         group_by(sire, dam) %>% 

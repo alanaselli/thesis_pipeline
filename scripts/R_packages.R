@@ -1,4 +1,5 @@
-install.packages("AlphaSimR")
+library(devtools)
+devtools::install_version("AlphaSimR", version = "1.4.2")
 install.packages("detectRUNS")
 install.packages("cli")
 devtools::install_github("gabraham/flashpca/flashpcaR", force = TRUE)
