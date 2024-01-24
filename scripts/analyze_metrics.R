@@ -3,18 +3,15 @@ library(ggplot2)
 library(plotly)
 library(htmlwidgets)
 
-analyze_df = function(scenario){
+analyze_df = function(folder_name="",
+                      scenario){
     print("--------")
     
     # Import data from all scenarios
-    df = read.table(paste0("scenario_",scenario,"/candidates_metrics.txt"),
+    df = read.table(paste0(folder_name,"scenario_",scenario,"/candidates_metrics.txt"),
                     header = T)
     
-    pedigree = read.table(paste0("scenario_",scenario,"/pedigree.txt"),
-                          header = T)
-    
-    # Include generation
-    df = merge(df, pedigree[,c(1,8)], all.x = T)
+    print(summary(df))
     
     # Number of unique IDs
     print(paste0("Number of unique IDs: ", nrow(df[!duplicated(df$ID),])))
@@ -24,7 +21,7 @@ analyze_df = function(scenario){
     # Save repeated IDs
     
     repeated_IDs = df %>% 
-        select(ID, generation) %>% 
+        select(ID, gen) %>% 
         group_by(ID) %>% 
         summarise(n = n()) %>% 
         filter(n > 1)
@@ -41,7 +38,7 @@ analyze_df = function(scenario){
     # Variation in metrics excluding repeated records
     assign(paste0('summ_',scenario), df %>% 
         filter(!duplicated(ID)) %>% 
-        group_by(generation) %>% 
+        group_by(gen) %>% 
         summarise(n = n(), 
                   across(pheno:Froh_genome,
                          list(mean = mean, 
@@ -49,61 +46,47 @@ analyze_df = function(scenario){
         envir = .GlobalEnv)
 }
 
-analyze_df("01")
-analyze_df("02")
-analyze_df("03")
+analyze_df(folder_name,"01")
+analyze_df(folder_name,"02")
+analyze_df(folder_name,"03")
 
 # Plots
-make_lineplot = function(trait){
-    df1 = summ_01[,c('generation', trait)] %>% 
-        filter(generation > 15)
-    names(df1) = c('generation', 'y')
-    df2 = summ_02[,c('generation', trait)] %>% 
-        filter(generation > 15)
-    names(df2) = c('generation', 'y')
-    df3 = summ_03[,c('generation', trait)] %>% 
-        filter(generation > 15)
-    names(df3) = c('generation', 'y')
+make_lineplot = function(folder_name, trait){
+    df1 = summ_01[,c('gen', trait)] %>% 
+        filter(gen > 15)
+    names(df1) = c('gen', 'y')
+    df2 = summ_02[,c('gen', trait)] %>% 
+        filter(gen > 15)
+    names(df2) = c('gen', 'y')
+    df3 = summ_03[,c('gen', trait)] %>% 
+        filter(gen > 15)
+    names(df3) = c('gen', 'y')
     
-    # Scenario 1
-    fig <- plot_ly(data=df1,
-                   x = ~generation, 
-                   y = ~y,
-                   type = 'scatter', mode = 'lines',
-                   line = list(color='rgb(0,100,80)'),
-                   name = 'EBV + Fped')
+    g = ggplot(df1, aes(gen)) + 
+        geom_point(aes(y=y, color = "EBV + Fped")) +
+        geom_smooth(aes(y=y, color = "EBV + Fped"),
+                    formula = y ~ x, method = "loess") +
+        geom_point(aes(y=df2$y, color = "GEBV + Fg")) +
+        geom_smooth(aes(y=df2$y, color = "GEBV + Fg"),
+                    formula = y ~ x, method = "loess") +
+        geom_point(aes(y=df3$y, color = "GEBV + Froh")) +
+        geom_smooth(aes(y=df3$y, color = "GEBV + Froh"),
+                    formula = y ~ x, method = "loess") +
+        scale_colour_manual("", 
+                            breaks = c("EBV + Fped", "GEBV + Fg", "GEBV + Froh"),
+                            values = c("red", "green", "blue")) +
+        labs(title = paste0("Evolution of ",trait)) +
+        ylab(trait) +
+        theme_bw()
     
-    # Scenario 2
-    fig <- fig %>% add_trace(data=df2,
-                             x = ~generation, 
-                             y = ~y,
-                             type = 'scatter', mode = 'lines',
-                             line = list(color='rgb(19, 16, 234)'),
-                             name = 'GEBV + Fg')
+    ggsave(paste0("plots/",folder_name,trait,".png"),
+           width = 20, height = 10, units = "cm", device = "png")
     
-    # Scenario 3
-    fig <- fig %>% add_trace(data=df3,
-                             x = ~generation, 
-                             y = ~y, 
-                             type = 'scatter', mode = 'lines',
-                             line = list(color='red'),
-                             name = 'GEBV + Froh')
-    
-    fig <- fig %>% layout(title = paste0("Evolution of ",trait))
-    
-    htmlwidgets::saveWidget(
-        widget = fig, #the plotly object
-        file = paste0("plots/line_",trait,".html"), #the path & file name
-        selfcontained = TRUE #creates a single html file
-    )
-    
-    return(fig)
+    return(g)
 }
 
-make_lineplot('pheno_mean')
-make_lineplot('EBV_mean')
-make_lineplot('GV_mean')
-make_lineplot('solution_mean')
-make_lineplot('Fped_mean')
-make_lineplot('Fg_mean')
-make_lineplot('Froh_genome_mean')
+dir.create(file.path("plots/", folder_name), showWarnings = FALSE)
+
+for (trait in c(names(summ_01)[c(3,5,7,9,11,13,15)])){
+    make_lineplot(folder_name,trait)
+}
