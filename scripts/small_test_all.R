@@ -151,7 +151,7 @@ for (gen in 1:number_of_generations) {
     
     cli_alert_info(paste0("\nInitiating generation ",gen,
                           " of scenario ", scenario_name, ".\n"))
-    year = year + 1
+    year = year + 1 
     
     if (gen == 1) {append = FALSE} else {append = TRUE}
     
