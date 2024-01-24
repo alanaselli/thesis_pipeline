@@ -178,7 +178,7 @@ mate_selection_GEBV_Froh = function(pop = recentPop,
             slice_min(max_Froh, prop = Froh_percentage) %>%  
             select(sire, dam)
         
-        cli_alert_info(paste0("\nF threshold increased to ",Fg_percentage,
+        cli_alert_info(paste0("\nF threshold increased to ",Froh_percentage,
                               " to attend minimum number of female candidates.\n"))
     }
     
