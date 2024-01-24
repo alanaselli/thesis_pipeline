@@ -1,3 +1,19 @@
+#!/usr/bin/env Rscript
+args = commandArgs(trailingOnly=TRUE)
+
+if (length(args)!=4) {
+    stop("The following arguments must be provided: number_of_generations, males_each_year, females_each_year, nCrosses, folder_name.", 
+         call.=FALSE)
+}
+
+number_of_generations = args[1]
+males_each_year = args[2]
+females_each_year = args[3]
+nCrosses = args[4]
+folder_name = args[5]
+
+dir.create(file.path(folder_name), showWarnings = TRUE)
+
 library(sys)
 library(AlphaSimR)
 library(dplyr)
@@ -22,19 +38,26 @@ times = data.frame(activity = c("start_simulation"),
 
 cli_h2("\nGenerating founder genomes.\n")
 
+segSites = c(2100,1975,1850,1710,1700)
+nSnpPerChr = c(2000,1900,1800,1700,1700)
+nQtlPerChr = c(100,75,50,10,0)
+
+# https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2374996/table/T4/?report=objectonly
+chr_size = c(1.46e8, 1.25e8, 1.16e8, 1.1e8, 1.18e8)
+
 founderGenomes = runMacs2(
     nInd = 100,
     nChr = 5,
     Ne = 200,
-    segSites = c(1000,800,700,600,500)
+    segSites = segSites
 )
 
 SP = SimParam$new(founderGenomes)
 SP$setSexes("yes_sys")
-SP$addSnpChip(nSnpPerChr = c(950,780,700,600,500))
+SP$addSnpChip(nSnpPerChr = nSnpPerChr)
 
 # Add simple additive trait
-SP$addTraitA(nQtlPerChr = c(50,20,0,0,0), mean = 0, var = 1)
+SP$addTraitA(nQtlPerChr = nQtlPerChr, mean = 0, var = 1)
 SP$setVarE(h2 = 0.3)
 
 # ---- Generate initial populations ----
@@ -87,10 +110,6 @@ cli_alert_info(paste0("\n",expandedPop@nInd,
 
 cli_h2("\nGenerating recent population.\n")
 
-males_each_year = c(3,2)
-females_each_year = c(20,15,10,5)
-nCrosses = 50
-
 recent_pop_list = makeRecentPop(previous_pop = expandedPop, 
                           males_each_year = males_each_year, 
                           females_each_year = females_each_year, 
@@ -115,18 +134,19 @@ times = rbind(times, c("end_base_simulation", format(Sys.time(), "%Y-%m-%d %H:%M
 
 # Change positions in map file
 adjust_pos("01_genotypes/recent.map",
-           c(950,780,700,600,500), c(1.2e8,1e8,9e7,7e7,5e7))
+           nSnpPerChr, chr_size)
 
 # ---- Start new selection process ----
 
 # Split time
 split_time = year
-number_of_generations = 50
 
 # ---- Traditional EBV and Fped ----
 
-scenario_folder = "scenario_01/"
+scenario_folder = file.path(folder_name,"scenario_01")
 scenario_name = "EBV_Fped"
+
+dir.create(file.path(scenario_folder), showWarnings = TRUE)
 
 times = rbind(times, c(paste0("start_scenario_",scenario_name), 
                        format(Sys.time(), "%Y-%m-%d %H:%M:%S")))
@@ -189,11 +209,6 @@ for (gen in 1:number_of_generations) {
                           scenario_folder,'new_map.map --make-bed --recode --out ',
                           scenario_folder,'recent'))
     
-    # Prepare SNP file
-    # system(command=paste0("scripts/prepare_snp_file.sh ",
-    #                       scenario_folder,"recent.ped ",
-    #                       "01_genotypes/new_map.map 05_BLUPF90/snp_file.txt"))
-    
     cli_alert_success(paste0("\nGeneration ",gen,
                              " of scenario ",scenario_name,
                              " is complete.\n"))
@@ -204,8 +219,10 @@ for (gen in 1:number_of_generations) {
 # Rewind time
 year = split_time
 
-scenario_folder = "scenario_02/"
+scenario_folder = file.path(folder_name,"scenario_02")
 scenario_name = "GEBV_Fg"
+
+dir.create(file.path(scenario_folder), showWarnings = TRUE)
 
 times = rbind(times, c(paste0("start_scenario_",scenario_name), 
                        format(Sys.time(), "%Y-%m-%d %H:%M:%S")))
@@ -268,11 +285,6 @@ for (gen in 1:number_of_generations) {
                           scenario_folder,'new_map.map --make-bed --recode --out ',
                           scenario_folder,'recent'))
     
-    # Prepare SNP file
-    # system(command=paste0("scripts/prepare_snp_file.sh ",
-                          # scenario_folder,"recent.ped ",
-                          # "01_genotypes/new_map.map 05_BLUPF90/snp_file.txt"))
-    
     cli_alert_success(paste0("\nGeneration ",gen,
                              " of scenario ",scenario_name,
                              " is complete.\n"))
@@ -283,8 +295,10 @@ for (gen in 1:number_of_generations) {
 # Rewind time
 year = split_time
 
-scenario_folder = "scenario_03/"
+scenario_folder = file.path(folder_name,"scenario_03")
 scenario_name = "GEBV_Froh"
+
+dir.create(file.path(scenario_folder), showWarnings = TRUE)
 
 times = rbind(times, c(paste0("start_scenario_",scenario_name), 
                        format(Sys.time(), "%Y-%m-%d %H:%M:%S")))
@@ -346,11 +360,6 @@ for (gen in 1:number_of_generations) {
                           scenario_folder,'last_gen.ped ',
                           scenario_folder,'new_map.map --make-bed --recode --out ',
                           scenario_folder,'recent'))
-    
-    # Prepare SNP file
-    # system(command=paste0("scripts/prepare_snp_file.sh ",
-    #                       scenario_folder,"recent.ped ",
-    #                       "01_genotypes/new_map.map 05_BLUPF90/snp_file.txt"))
     
     cli_alert_success(paste0("\nGeneration ",gen,
                             " of scenario ",scenario_name,
