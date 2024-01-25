@@ -1,23 +1,40 @@
 #!/usr/bin/env Rscript
-args = commandArgs(trailingOnly=TRUE)
-
-if (length(args)!=4) {
-    stop("The following arguments must be provided: number_of_generations, males_each_year, females_each_year, nCrosses, folder_name.", 
-         call.=FALSE)
-}
-
-number_of_generations = args[1]
-males_each_year = args[2]
-females_each_year = args[3]
-nCrosses = args[4]
-folder_name = args[5]
-
-dir.create(file.path(folder_name), showWarnings = TRUE)
-
+library("optparse")
 library(sys)
 library(AlphaSimR)
 library(dplyr)
 library(cli)
+
+option_list = list(
+    make_option(c("-g", "--nGenerations"), type="integer", default=NULL, 
+                help="number of generations in scenarios", metavar="character"),
+    make_option(c("-m", "--males_each_year"), type="character", default=NULL, 
+                help="number of males each year separated by spaces"),
+    make_option(c("-f", "--females_each_year"), type="character", default=NULL, 
+                help="number of females each year separated by spaces"),
+    make_option(c("-c", "--nCrosses"), type="integer", default=NULL, 
+                help="number of crosses", metavar="integer"),
+    make_option(c("-n", "--folder_name"), type="character", default=NULL, 
+                help="folder name to store scenarios", metavar="character")
+)
+
+opt_parser = OptionParser(option_list=option_list)
+opt = parse_args(opt_parser)
+
+number_of_generations = opt$nGenerations
+males_each_year = as.double(unlist(strsplit(opt$males_each_year, " ")))
+females_each_year = as.double(unlist(strsplit(opt$females_each_year, " ")))
+nMatings = opt$nCrosses
+folder_name = opt$folder_name
+
+cli_alert(paste0("\nArguments passed:\n"))
+cli_alert(paste0("\nnumber_of_generations = ", number_of_generations))
+cli_alert(paste0("\nmales_each_year = "))
+cli_alert(paste0("\nfemales_each_year = "))
+cli_alert(paste0("\nnCrosses = ", nMatings))
+cli_alert(paste0("\nfolder_name = ", folder_name))
+
+dir.create(file.path(folder_name), showWarnings = FALSE)
 
 start_time = proc.time()
 
@@ -38,16 +55,20 @@ times = data.frame(activity = c("start_simulation"),
 
 cli_h2("\nGenerating founder genomes.\n")
 
-segSites = c(2100,1975,1850,1710,1700)
-nSnpPerChr = c(2000,1900,1800,1700,1700)
-nQtlPerChr = c(100,75,50,10,0)
+segSites = c(1050, 925,800)
+nSnpPerChr = c(1000,900,800)
+nQtlPerChr = c(50,25,0)
+chr_size = c(1e8, 9e7, 8e7)
+# segSites = c(2100,1975,1850,1710,1700)
+# nSnpPerChr = c(2000,1900,1800,1700,1700)
+# nQtlPerChr = c(100,75,50,10,0)
 
 # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2374996/table/T4/?report=objectonly
-chr_size = c(1.46e8, 1.25e8, 1.16e8, 1.1e8, 1.18e8)
+# chr_size = c(1.46e8, 1.25e8, 1.16e8, 1.1e8, 1.18e8)
 
 founderGenomes = runMacs2(
     nInd = 100,
-    nChr = 5,
+    nChr = 3,
     Ne = 200,
     segSites = segSites
 )
@@ -74,10 +95,10 @@ rec_data(paste0(geno_path,"pedigree.txt"), founderPop,
 
 cli_h2("\nExpanding founder population.\n")
 
-nCrosses = 100
+nCrosses_e = 100
 expandedPop = randCross(
     pop = founderPop,
-    nCrosses = nCrosses,
+    nCrosses = nCrosses_e,
     nProgeny = 1
 )
 rm(founderPop, founderGenomes)
@@ -91,10 +112,10 @@ rec_data(paste0(geno_path,"pedigree.txt"), expandedPop,
 
 cli_progress_bar("Expanding population", total = 5)
 for (gen in 1:5) {
-    nCrosses = round(nCrosses*2)
+    nCrosses = round(nCrosses_e*2)
     expandedPop = randCross(
         pop = expandedPop,
-        nCrosses = nCrosses,
+        nCrosses = nCrosses_e,
         nProgeny = 1
     )
     year = year + 1
@@ -113,7 +134,7 @@ cli_h2("\nGenerating recent population.\n")
 recent_pop_list = makeRecentPop(previous_pop = expandedPop, 
                           males_each_year = males_each_year, 
                           females_each_year = females_each_year, 
-                          nCrosses = nCrosses, 
+                          nCrosses = nMatings, 
                           year = year,
                           years_of_breeding = 10,
                           return_breeding_groups = TRUE,
@@ -124,6 +145,7 @@ year = year + 10
 
 # Progeny and parents except for oldest groups
 recentPop = mergePops(recent_pop_list[c(1,2,4:6)])
+cli_alert(paste0("\nN recent: ", recentPop@nInd))
 
 rm(expandedPop, recent_pop_list)
 
@@ -143,7 +165,7 @@ split_time = year
 
 # ---- Traditional EBV and Fped ----
 
-scenario_folder = file.path(folder_name,"scenario_01")
+scenario_folder = file.path(folder_name,"scenario_01/")
 scenario_name = "EBV_Fped"
 
 dir.create(file.path(scenario_folder), showWarnings = TRUE)
@@ -173,7 +195,17 @@ for (gen in 1:number_of_generations) {
                           " of scenario ", scenario_name, ".\n"))
     year = year + 1 
     
-    if (gen == 1) {append = FALSE} else {append = TRUE}
+    if (gen == 1) {
+        append = FALSE
+    } else {
+            append = TRUE
+            }
+    
+    if (gen == number_of_generations) {
+        last_gen = TRUE
+    } else {
+        last_gen = FALSE
+        }
     
     scenario_pop = mate_selection_EBV_Fped(pop = scenario_pop,
                                           year = year,
@@ -182,9 +214,10 @@ for (gen in 1:number_of_generations) {
                                           Fped_percentage = 0.2, # percentage to keep
                                           male_groups = males_each_year,
                                           female_groups = females_each_year,
-                                          nMatings = nCrosses,
+                                          nMatings = nMatings,
                                           nMatings_per_sire=10,
-                                          append = append)
+                                          append = append,
+                                          last_gen = last_gen)
     
     # Take only the last generation to add records
     last_gen = data.frame(id=scenario_pop@id, 
@@ -219,7 +252,7 @@ for (gen in 1:number_of_generations) {
 # Rewind time
 year = split_time
 
-scenario_folder = file.path(folder_name,"scenario_02")
+scenario_folder = file.path(folder_name,"scenario_02/")
 scenario_name = "GEBV_Fg"
 
 dir.create(file.path(scenario_folder), showWarnings = TRUE)
@@ -249,7 +282,17 @@ for (gen in 1:number_of_generations) {
                           " of scenario ", scenario_name, ".\n"))
     year = year + 1
     
-    if (gen == 1) {append = FALSE} else {append = TRUE}
+    if (gen == 1) {
+        append = FALSE
+    } else {
+        append = TRUE
+    }
+    
+    if (gen == number_of_generations) {
+        last_gen = TRUE
+    } else {
+        last_gen = FALSE
+    }
     
     scenario_pop = mate_selection_GEBV_Fg(pop = scenario_pop,
                                             year = year,
@@ -258,9 +301,10 @@ for (gen in 1:number_of_generations) {
                                             Fg_percentage = 0.2, # percentage to keep
                                             male_groups = males_each_year,
                                             female_groups = females_each_year,
-                                            nMatings = nCrosses,
+                                            nMatings = nMatings,
                                             nMatings_per_sire=10,
-                                            append = append)
+                                            append = append,
+                                          last_gen = last_gen)
     
     # Take only the last generation to add records
     last_gen = data.frame(id=scenario_pop@id, 
@@ -295,7 +339,7 @@ for (gen in 1:number_of_generations) {
 # Rewind time
 year = split_time
 
-scenario_folder = file.path(folder_name,"scenario_03")
+scenario_folder = file.path(folder_name,"scenario_03/")
 scenario_name = "GEBV_Froh"
 
 dir.create(file.path(scenario_folder), showWarnings = TRUE)
@@ -325,7 +369,17 @@ for (gen in 1:number_of_generations) {
                           " of scenario ", scenario_name, ".\n"))
     year = year + 1
     
-    if (gen == 1) {append = FALSE} else {append = TRUE}
+    if (gen == 1) {
+        append = FALSE
+    } else {
+        append = TRUE
+    }
+    
+    if (gen == number_of_generations) {
+        last_gen = TRUE
+    } else {
+        last_gen = FALSE
+    }
     
     scenario_pop = mate_selection_GEBV_Froh(pop = scenario_pop,
                                           year = year,
@@ -334,9 +388,10 @@ for (gen in 1:number_of_generations) {
                                           Froh_percentage = 0.2, # percentage to keep
                                           male_groups = males_each_year,
                                           female_groups = females_each_year,
-                                          nMatings = nCrosses,
+                                          nMatings = nMatings,
                                           nMatings_per_sire=10,
-                                          append = append)
+                                          append = append,
+                                          last_gen = last_gen)
     
     # Take only the last generation to add records
     last_gen = data.frame(id=scenario_pop@id, 
@@ -367,7 +422,7 @@ for (gen in 1:number_of_generations) {
 }
 
 times = rbind(times, c("end_script", format(Sys.time(), "%Y-%m-%d %H:%M:%S")))
-write.csv(times,"simulation_timestamps.csv", quote = F, row.names = F)
+write.csv(times,file.path(folder_name,"simulation_timestamps.csv"), quote = F, row.names = F)
 
 end_time = proc.time()
 total_time = end_time-start_time

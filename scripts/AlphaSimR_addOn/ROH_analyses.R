@@ -5,7 +5,8 @@ ROH_analyses = function(pop_name,
                         scenario,
                         ped,
                         map="01_genotypes/new_map.map",
-                        save_to="03_ROH/"){
+                        save_to="03_ROH/",
+                        save_metrics=FALSE){
     
     cli_alert_info(paste0("\nStarting ROH analysis for ",pop_name,".\n"))
     
@@ -22,9 +23,10 @@ ROH_analyses = function(pop_name,
         maxOppRun = 1,
         maxMissRun = 1
     )
-    
-    write.table(consecutiveRuns, paste0(out,"_consecutiveRuns.txt"), 
-                quote = F, row.names = F)
+    if (is.True(save_metrics)) {
+        write.table(consecutiveRuns, paste0(out,"_consecutiveRuns.txt"), 
+                    quote = F, row.names = F)
+    }
     
     # ---- Summary statistics on detected runs ----
     
@@ -35,14 +37,18 @@ ROH_analyses = function(pop_name,
     # Save Froh
     FROH = summaryList_CR$result_Froh_genome_wide
     
-    write.table(FROH, paste0(out,"_FROH.txt"), 
-                quote = F, row.names = F)
+    if (is.True(save_metrics)) {
+        write.table(FROH, paste0(out,"_FROH.txt"), 
+                    quote = F, row.names = F)
+    }
     
     # Save SNP in run
     SNPRUN = summaryList_CR$SNPinRun
     
-    write.table(SNPRUN, paste0(out,"_SNPinRun.txt"), 
-                quote = F, row.names = F)
+    if (is.True(save_metrics)) {
+        write.table(SNPRUN, paste0(out,"_SNPinRun.txt"), 
+                    quote = F, row.names = F)
+    }
     
     cli_alert_success("\nROH analyses completed.\n")
     

@@ -6,8 +6,7 @@ ENV DEBIAN_FRONTEND noninteractive
 WORKDIR /home
 
 RUN mkdir /home/scripts/ /home/01_genotypes/ /home/02_LD/ /home/03_ROH/ \
-/home/04_PCA/ /home/05_BLUPF90/ /home/scenario_01/ /home/scenario_02/ \
-/home/scenario_03/
+/home/04_PCA/ /home/05_BLUPF90/
 
 RUN apt-get -y update
 RUN apt-get -y install plink1.9

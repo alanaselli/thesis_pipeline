@@ -7,7 +7,8 @@ mate_selection_EBV_Fped = function(pop,
                                    female_groups = c(300,250,200,150,100),
                                    nMatings = 1000,
                                    nMatings_per_sire=20,
-                                   append = TRUE
+                                   append = TRUE,
+                                   last_gen = FALSE
                                    ){
     if (append == TRUE) {
         col.names = FALSE
@@ -65,7 +66,8 @@ mate_selection_EBV_Fped = function(pop,
                         generation = year,
                         ped = paste0(scenario_folder,"candidates.ped"),
                         map="01_genotypes/new_map.map",
-                        save_to="03_ROH/")
+                        save_to=scenario_folder,
+                        save_metrics = last_gen)
     
     # Read Fg
     Fg = read.table("05_BLUPF90/DiagGOrig.txt",

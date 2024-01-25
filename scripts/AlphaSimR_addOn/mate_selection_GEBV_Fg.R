@@ -7,7 +7,8 @@ mate_selection_GEBV_Fg = function(pop = recentPop,
                                    female_groups = c(300,250,200,150,100),
                                    nMatings = 1000,
                                    nMatings_per_sire=20,
-                                   append = TRUE
+                                   append = TRUE,
+                                  last_gen = FALSE
 ){
     if (isTRUE(append)) {
         col.names = FALSE
@@ -85,7 +86,8 @@ mate_selection_GEBV_Fg = function(pop = recentPop,
                         ped = paste0(scenario_folder,"candidates.ped"),
                         scenario = "sc_02",
                         map="01_genotypes/new_map.map",
-                        save_to="03_ROH/")
+                        save_to=scenario_folder,
+                        save_metrics = last_gen)
     
     # Merge dataframes (candidates)
     candidates_data = merge(BLUP, BLUPF90_EBVs[,c("original_id","solution")],
