@@ -8,6 +8,7 @@ runBLUPF90 = function(param_card, # "renum.txt"
                     pedigree="01_genotypes/pedigree.txt",
                     min_gen){
     
+    # http://nce.ads.uga.edu/wiki/doku.php?id=faq.segfault
     system(command="ulimit -s unlimited")
     system(command="export OMP_STACKSIZE=64M")
     
