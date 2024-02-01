@@ -14,11 +14,11 @@ awk '{split($1, arr, "_"); print "1", $1, arr[1], arr[2], 0, 0}' "$input_file" >
 
 # Prepare genotypes
 awk '!($1="")' "$input_file" > temp.file7
-sed -i '' -e 's/1/12/g' temp.file7
-sed -i '' -e 's/0/11/g' temp.file7
-sed -i '' -e 's/3/21/g' temp.file7
-sed -i '' -e 's/4/22/g' temp.file7
-sed -i '' -e 's/./& /g' temp.file7
+sed -i 's/1/12/g' temp.file7
+sed -i 's/0/11/g' temp.file7
+sed -i 's/3/21/g' temp.file7
+sed -i 's/4/22/g' temp.file7
+sed -i 's/./& /g' temp.file7
 
 # Merge files
 paste -d' ' temp.file temp.file7 > temp.file.final
