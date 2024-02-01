@@ -21,6 +21,8 @@ mate_selection_GEBV_Froh = function(pop = recentPop,
     fakePed[,c(4:7)] = 0
     fakePed$gen = year
     
+    n_fakes = nrow(fakePed)
+    
     system(command=paste0("cp ",scenario_folder,"pedigree.txt ",
                           scenario_folder,"pedigree_with_fakes.txt"))
     
@@ -43,6 +45,19 @@ mate_selection_GEBV_Froh = function(pop = recentPop,
     
     # Fit RR-BLUP model for genomic predictions (candidates)
     BLUP = GBLUP_AlphaSimR(pop)
+    n_candidates = nrow(BLUP)
+    n_train = system(command = paste0("wc -l ",scenario_folder,"recent.ped"),
+                     intern = T)
+    n_train = as.integer(gsub("^\\s*([0-9]+).*", "\\1", n_train))
+    
+    n_animals = data.frame(n_fakes=n_fakes,
+                           n_candidates=n_candidates,
+                           n_train=n_train,
+                           gen = year)
+    
+    write.table(n_animals, paste0(scenario_folder,"n_animals.txt"), 
+                append = append, col.names = col.names,
+                quote = F)
     
     # For BLUPF90 I need all generations (recent)
     # Merge genomic data from last generations with fake progeny (for BLUPF90)
@@ -87,7 +102,7 @@ mate_selection_GEBV_Froh = function(pop = recentPop,
                         scenario = "sc_03",
                         map="01_genotypes/new_map.map",
                         save_to=scenario_folder,
-                        save_metrics=last_gen)
+                        save_metrics=T)
     
     # Merge dataframes (candidates)
     candidates_data = merge(BLUP, BLUPF90_EBVs[,c("original_id","solution")],
@@ -117,7 +132,7 @@ mate_selection_GEBV_Froh = function(pop = recentPop,
                         scenario = "sc_03_fake",
                         map="01_genotypes/new_map.map",
                         save_to=scenario_folder,
-                        save_metrics = last_gen)
+                        save_metrics = T)
     
     # Merge dataframes (progeny)
     df = merge(fakePed[,c(1:3,8)], BLUPF90_EBVs[,c("original_id","solution")],
