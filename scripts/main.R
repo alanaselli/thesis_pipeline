@@ -55,19 +55,20 @@ times = data.frame(activity = c("start_simulation"),
 
 cli_h2("\nGenerating founder genomes.\n")
 
-segSites = c(1050, 925,800)
-nSnpPerChr = c(1000,900,800)
-nQtlPerChr = c(50,25,0)
-chr_size = c(1e8, 9e7, 8e7)
-# segSites = c(2100,1975,1850,1710,1700)
-# nSnpPerChr = c(2000,1900,1800,1700,1700)
-# nQtlPerChr = c(100,75,50,10,0)
+# segSites = c(1050, 925,800)
+# nSnpPerChr = c(1000,900,800)
+# nQtlPerChr = c(50,25,0)
+# chr_size = c(1e8, 9e7, 8e7)
+
+segSites = c(2100,1950,1800)
+nSnpPerChr = c(2000,1900,1800)
+nQtlPerChr = c(100,50,0)
 
 # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2374996/table/T4/?report=objectonly
-# chr_size = c(1.46e8, 1.25e8, 1.16e8, 1.1e8, 1.18e8)
+chr_size = c(1.46e8, 1.25e8, 1.16e8)
 
 founderGenomes = runMacs2(
-    nInd = 100,
+    nInd = 200,
     nChr = 3,
     Ne = 200,
     segSites = segSites
@@ -95,7 +96,7 @@ rec_data(paste0(geno_path,"pedigree.txt"), founderPop,
 
 cli_h2("\nExpanding founder population.\n")
 
-nCrosses_e = 100
+nCrosses_e = 200
 expandedPop = randCross(
     pop = founderPop,
     nCrosses = nCrosses_e,
@@ -110,9 +111,9 @@ expandedPop = setMisc(x = expandedPop,
 rec_data(paste0(geno_path,"pedigree.txt"), expandedPop, 
          "Expanded", year, append = TRUE)
 
-cli_progress_bar("Expanding population", total = 5)
-for (gen in 1:5) {
-    nCrosses = round(nCrosses_e*2)
+cli_progress_bar("Expanding population", total = 30)
+for (gen in 1:30) {
+    nCrosses = round(nCrosses_e*1.2)
     expandedPop = randCross(
         pop = expandedPop,
         nCrosses = nCrosses_e,

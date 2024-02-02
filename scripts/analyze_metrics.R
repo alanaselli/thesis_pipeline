@@ -94,6 +94,54 @@ for (trait in c(names(summ_01)[c(3,5,7,9,11,13,15)])){
     make_lineplot(folder_name,trait)
 }
 
+# Scatter plots
+make_scatter_plot = function(folder_name="",
+                      trait1,
+                      trait2,
+                      gen,
+                      scenario){
+    
+    # Import data from all scenarios
+    df = read.table(paste0("simulations/",folder_name,
+                           "scenario_",scenario,"/candidates_metrics.txt"),
+                    header = T)
+    
+    df = df[,c('ID','gen', trait1, trait2)] %>% 
+        filter(!duplicated(ID)) %>% 
+        filter(gen == gen) %>% 
+        select(trait1, trait2)
+    names(df) = c("trait1","trait2")
+    
+    print(nrow(df))
+    
+    g = ggplot(df, aes(trait1, trait2)) + 
+        geom_point() +
+        labs(x = trait1, y = trait2,
+             title = paste0(trait1," and ",trait2," for generation ",gen),
+             subtitle = paste0("Scenario ",scenario))+
+        theme_bw()
+    ggsave(paste0("plots/",folder_name,"scatter_",
+                  trait1,"_",trait2,
+                  "_sc_",scenario,"_gen_",gen,".png"),
+           width = 20, height = 10, units = "cm", device = "png")
+}
+
+for (gen in c(17,66)) {
+    for (scenario in c("01","02","03")){
+        make_scatter_plot(folder_name, "Fped", "Fg", gen, scenario)
+        make_scatter_plot(folder_name, "Froh_genome", "Fg", gen, scenario)
+        make_scatter_plot(folder_name, "Fped", "Froh_genome", gen, scenario)
+        make_scatter_plot(folder_name, "EBV", "solution", gen, scenario)
+        make_scatter_plot(folder_name, "EBV", "GV", gen, scenario)
+        make_scatter_plot(folder_name, "solution", "GV", gen, scenario)
+        make_scatter_plot(folder_name, "EBV", "Fped", gen, scenario)
+        make_scatter_plot(folder_name, "EBV", "Fg", gen, scenario)
+        make_scatter_plot(folder_name, "EBV", "Froh_genome", gen, scenario)
+    }
+}
+
+make_scatter_plot(folder_name, "solution", "Froh_genome", 17, "01")
+
 # ---- Expected progeny x reality ----
 folder_name = "50_50/"
 scenario = "02"

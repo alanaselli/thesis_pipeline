@@ -23,7 +23,7 @@ ROH_analyses = function(pop_name,
         maxOppRun = 1,
         maxMissRun = 1
     )
-    if (is.True(save_metrics)) {
+    if (isTRUE(save_metrics)) {
         write.table(consecutiveRuns, paste0(out,"_consecutiveRuns.txt"), 
                     quote = F, row.names = F)
     }
@@ -37,7 +37,7 @@ ROH_analyses = function(pop_name,
     # Save Froh
     FROH = summaryList_CR$result_Froh_genome_wide
     
-    if (is.True(save_metrics)) {
+    if (isTRUE(save_metrics)) {
         write.table(FROH, paste0(out,"_FROH.txt"), 
                     quote = F, row.names = F)
     }
@@ -45,7 +45,7 @@ ROH_analyses = function(pop_name,
     # Save SNP in run
     SNPRUN = summaryList_CR$SNPinRun
     
-    if (is.True(save_metrics)) {
+    if (isTRUE(save_metrics)) {
         write.table(SNPRUN, paste0(out,"_SNPinRun.txt"), 
                     quote = F, row.names = F)
     }
