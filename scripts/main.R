@@ -55,23 +55,24 @@ times = data.frame(activity = c("start_simulation"),
 
 cli_h2("\nGenerating founder genomes.\n")
 
-# segSites = c(1050, 925,800)
-# nSnpPerChr = c(1000,900,800)
-# nQtlPerChr = c(50,25,0)
-# chr_size = c(1e8, 9e7, 8e7)
-
-segSites = c(2100,1950,1800)
-nSnpPerChr = c(2000,1900,1800)
-nQtlPerChr = c(100,50,0)
+#segSites = c(4000,3500,3200,2500,2500)
+bp = c(1.58e8,1.37e8,1.21e8)
+histNe = c(1000, 2000, 4000, 7500, 10000)
+histGen = c(50, 100, 500, 1000, 1500)
+nSnpPerChr = c(3000,2500,2200,2000,1900)
+nQtlPerChr = c(100,75,50,10,0)
 
 # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2374996/table/T4/?report=objectonly
-chr_size = c(1.46e8, 1.25e8, 1.16e8)
+chr_size = c(1.46e8, 1.25e8, 1.16e8, 1.1e8, 1.18e8)
 
 founderGenomes = runMacs2(
     nInd = 200,
-    nChr = 3,
+    nChr = 5,
     Ne = 200,
-    segSites = segSites
+    bp = bp,
+    histNe = histNe,
+    histGen = histGen
+    #segSites = segSites
 )
 
 SP = SimParam$new(founderGenomes)
@@ -96,7 +97,7 @@ rec_data(paste0(geno_path,"pedigree.txt"), founderPop,
 
 cli_h2("\nExpanding founder population.\n")
 
-nCrosses_e = 200
+nCrosses_e = 100
 expandedPop = randCross(
     pop = founderPop,
     nCrosses = nCrosses_e,
@@ -113,7 +114,7 @@ rec_data(paste0(geno_path,"pedigree.txt"), expandedPop,
 
 cli_progress_bar("Expanding population", total = 30)
 for (gen in 1:30) {
-    nCrosses = round(nCrosses_e*1.2)
+    nCrosses_e = round(nCrosses_e*1.2)
     expandedPop = randCross(
         pop = expandedPop,
         nCrosses = nCrosses_e,
@@ -192,7 +193,7 @@ for (gen in 1:number_of_generations) {
     times = rbind(times, c(paste0("scenario_",scenario_name,"_gen_",gen), 
                            format(Sys.time(), "%Y-%m-%d %H:%M:%S")))
     
-    cli_alert_info(paste0("\nInitiating generation ",gen,
+    cli_h2(paste0("\nInitiating generation ",gen,
                           " of scenario ", scenario_name, ".\n"))
     year = year + 1 
     
@@ -212,7 +213,7 @@ for (gen in 1:number_of_generations) {
                                           year = year,
                                           scenario_folder = scenario_folder,
                                           pre_selection_males_porc = 0.8, # percentage to remove
-                                          Fped_percentage = 0.2, # percentage to keep
+                                          Fped_percentage = 0.5, # percentage to keep
                                           male_groups = males_each_year,
                                           female_groups = females_each_year,
                                           nMatings = nMatings,
@@ -279,7 +280,7 @@ for (gen in 1:number_of_generations) {
     times = rbind(times, c(paste0("scenario_",scenario_name,"_gen_",gen), 
                            format(Sys.time(), "%Y-%m-%d %H:%M:%S")))
     
-    cli_alert_info(paste0("\nInitiating generation ",gen,
+    cli_h2(paste0("\nInitiating generation ",gen,
                           " of scenario ", scenario_name, ".\n"))
     year = year + 1
     
@@ -299,7 +300,7 @@ for (gen in 1:number_of_generations) {
                                             year = year,
                                             scenario_folder = scenario_folder,
                                             pre_selection_males_porc = 0.8, # percentage to remove
-                                            Fg_percentage = 0.2, # percentage to keep
+                                            Fg_percentage = 0.5, # percentage to keep
                                             male_groups = males_each_year,
                                             female_groups = females_each_year,
                                             nMatings = nMatings,
@@ -366,7 +367,7 @@ for (gen in 1:number_of_generations) {
     times = rbind(times, c(paste0("scenario_",scenario_name,"_gen_",gen), 
                            format(Sys.time(), "%Y-%m-%d %H:%M:%S")))
     
-    cli_alert_info(paste0("\nInitiating generation ",gen,
+    cli_h2(paste0("\nInitiating generation ",gen,
                           " of scenario ", scenario_name, ".\n"))
     year = year + 1
     
@@ -386,7 +387,7 @@ for (gen in 1:number_of_generations) {
                                           year = year,
                                           scenario_folder = scenario_folder,
                                           pre_selection_males_porc = 0.8, # percentage to remove
-                                          Froh_percentage = 0.2, # percentage to keep
+                                          Froh_percentage = 0.5, # percentage to keep
                                           male_groups = males_each_year,
                                           female_groups = females_each_year,
                                           nMatings = nMatings,

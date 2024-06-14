@@ -18,14 +18,14 @@ runBLUPF90 = function(param_card, # "renum.txt"
     # invisible(processx::run(command = "renumf90", c(param_card),
     #               wd = "05_BLUPF90/", echo_cmd = T, spinner = T,
     #               stdout = ""))
-    cli_alert_info("\nStarting renumf90.\n")
+    cli_alert_info("\nStarting RENUMF90.\n")
     system(command = "renumf90", input = param_card)
 
     # Run BLUPF90
     # invisible(processx::run(command = "blupf90", c("renf90.par", "--dense"),
     #               wd = "05_BLUPF90/", echo_cmd = T, spinner = T,
     #               stdout = ""))
-    cli_alert_info("\nStarting renumf90.\n")
+    cli_alert_info("\nStarting BLUPF90.\n")
     system(command = "blupf90 --dense", input = "renf90.par")
     
     setwd("../")

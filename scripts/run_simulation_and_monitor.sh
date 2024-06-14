@@ -9,6 +9,10 @@ scripts/monitor_memory.sh  &
 # Capture the background process ID (PID)
 script1_pid=$!
 
+# Configure for BLUPF90
+ulimit -s unlimited
+export OMP_STACKSIZE=64M
+
 # Run simulation
 /usr/local/bin/R --no-restore --file=scripts/main.R --args -g '10' -m '3 2' -f '20 15 10 5' -c '50' -n '10_50' > scripts/10_50.log
 /usr/local/bin/R --no-restore --file=scripts/main.R --args -g '50' -m '3 2' -f '20 15 10 5' -c '50' -n '50_50' > scripts/50_50.log

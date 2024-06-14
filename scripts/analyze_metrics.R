@@ -1,10 +1,43 @@
 library(dplyr)
+library(tidyr)
 library(ggplot2)
 library(plotly)
 library(htmlwidgets)
 
-folder_name = "50_50/"
+folder_name = "75_50_3/rep_01/"
 
+# ---- N animals per generation ----
+n_animals = read.table(paste0("simulations/",folder_name,"scenario_03/n_animals.txt"),
+                       row.names=NULL)[,c(2:5)]
+n_animals = n_animals[,c(1,3,4)]
+
+n_animals = n_animals %>% 
+    pivot_longer(cols = c("n_fakes","n_train"),
+                 names_to = "class",
+                 values_to = "count") %>% 
+    mutate(gen = gen-min(gen)) %>% 
+    mutate(class = case_when(
+        class == "n_fakes" ~ "Hypothetical progenies",
+        class == "n_train" ~ "Training population"
+    ))
+
+ggplot(data=n_animals, aes(x=gen, y=count, group = class, color = class)) +
+    geom_point()+
+    geom_smooth(aes(color = class), method = "loess") +
+    scale_colour_manual("", 
+                        breaks = c("Hypothetical progenies", 
+                                   "Training population"),
+                        values = c("orange", "purple")) +
+    ylab("Number of individuals") +
+    xlab("Generation") +
+    theme_bw() +
+    theme(legend.position = c(0.84, 0.125),
+          legend.background = element_rect(fill='transparent'))
+
+ggsave(paste0("plots/",folder_name,"n_animals",".png"),
+       width = 15, height = 10, units = "cm", device = "png")
+
+# ---- analyze_df ----
 analyze_df = function(folder_name="",
                       scenario){
     print("--------")
@@ -13,6 +46,8 @@ analyze_df = function(folder_name="",
     df = read.table(paste0("simulations/",folder_name,
                            "scenario_",scenario,"/candidates_metrics.txt"),
                     header = T)
+    
+    assign(paste0('df_',scenario),df,envir = .GlobalEnv)
     
     print(summary(df))
     
@@ -53,22 +88,23 @@ analyze_df(folder_name,"01")
 analyze_df(folder_name,"02")
 analyze_df(folder_name,"03")
 
-# Plots
+# ---- Line Plots ----
 make_lineplot = function(folder_name, trait){
-    df1 = summ_01[,c('gen', trait)] %>% 
-        filter(gen > 15)
+    
+    df1 = summ_01[,c('gen', trait)] %>%
+        mutate(gen=gen-min(gen))
     names(df1) = c('gen', 'y')
-    df2 = summ_02[,c('gen', trait)] %>% 
-        filter(gen > 15)
+    df2 = summ_02[,c('gen', trait)] %>%
+        mutate(gen=gen-min(gen))
     names(df2) = c('gen', 'y')
-    df3 = summ_03[,c('gen', trait)] %>% 
-        filter(gen > 15)
+    df3 = summ_03[,c('gen', trait)] %>%
+        mutate(gen=gen-min(gen))
     names(df3) = c('gen', 'y')
     
     g = ggplot(df1, aes(gen)) + 
         geom_point(aes(y=y, color = "EBV + Fped")) +
         geom_smooth(aes(y=y, color = "EBV + Fped"),
-                    formula = y ~ x, method = "loess") +
+                 formula = y ~ x, method = "loess") +
         geom_point(aes(y=df2$y, color = "GEBV + Fg")) +
         geom_smooth(aes(y=df2$y, color = "GEBV + Fg"),
                     formula = y ~ x, method = "loess") +
@@ -78,6 +114,7 @@ make_lineplot = function(folder_name, trait){
         scale_colour_manual("", 
                             breaks = c("EBV + Fped", "GEBV + Fg", "GEBV + Froh"),
                             values = c("red", "green", "blue")) +
+        scale_x_continuous(breaks = seq(0,75,5)) +
         labs(title = paste0("Evolution of ",trait)) +
         ylab(trait) +
         theme_bw()
@@ -94,57 +131,45 @@ for (trait in c(names(summ_01)[c(3,5,7,9,11,13,15)])){
     make_lineplot(folder_name,trait)
 }
 
-# Scatter plots
-make_scatter_plot = function(folder_name="",
+
+# ---- Scatter plots ----
+make_scatter_plot = function(folder_name,
                       trait1,
                       trait2,
-                      gen,
+                      generation,
                       scenario){
     
     # Import data from all scenarios
-    df = read.table(paste0("simulations/",folder_name,
+    DF = read.table(paste0("simulations/",folder_name,
                            "scenario_",scenario,"/candidates_metrics.txt"),
                     header = T)
     
-    df = df[,c('ID','gen', trait1, trait2)] %>% 
+    DF = DF[,c('ID','gen', trait1, trait2)] %>% 
         filter(!duplicated(ID)) %>% 
-        filter(gen == gen) %>% 
+        filter(gen == generation) %>% 
         select(trait1, trait2)
-    names(df) = c("trait1","trait2")
+    names(DF) = c("trait1","trait2")
     
-    print(nrow(df))
-    
-    g = ggplot(df, aes(trait1, trait2)) + 
+    g = ggplot(DF, aes(trait1, trait2)) + 
         geom_point() +
         labs(x = trait1, y = trait2,
-             title = paste0(trait1," and ",trait2," for generation ",gen),
+             title = paste0(trait1," and ",trait2," for generation ",generation),
              subtitle = paste0("Scenario ",scenario))+
         theme_bw()
     ggsave(paste0("plots/",folder_name,"scatter_",
                   trait1,"_",trait2,
-                  "_sc_",scenario,"_gen_",gen,".png"),
+                  "_sc_",scenario,"_gen_",generation,".png"),
            width = 20, height = 10, units = "cm", device = "png")
 }
 
-for (gen in c(17,66)) {
-    for (scenario in c("01","02","03")){
-        make_scatter_plot(folder_name, "Fped", "Fg", gen, scenario)
-        make_scatter_plot(folder_name, "Froh_genome", "Fg", gen, scenario)
-        make_scatter_plot(folder_name, "Fped", "Froh_genome", gen, scenario)
-        make_scatter_plot(folder_name, "EBV", "solution", gen, scenario)
-        make_scatter_plot(folder_name, "EBV", "GV", gen, scenario)
-        make_scatter_plot(folder_name, "solution", "GV", gen, scenario)
-        make_scatter_plot(folder_name, "EBV", "Fped", gen, scenario)
-        make_scatter_plot(folder_name, "EBV", "Fg", gen, scenario)
-        make_scatter_plot(folder_name, "EBV", "Froh_genome", gen, scenario)
-    }
-}
-
-make_scatter_plot(folder_name, "solution", "Froh_genome", 17, "01")
-
 # ---- Expected progeny x reality ----
-folder_name = "50_50/"
+folder_name = "75_50_3/rep_01/"
 scenario = "02"
+
+analyze_df(folder_name,"01")
+analyze_df(folder_name,"02")
+analyze_df(folder_name,"03")
+
 df_real = read.table(paste0("simulations/",folder_name,
                        "scenario_",scenario,"/candidates_metrics.txt"),
                 header = T)
@@ -156,7 +181,7 @@ pedigree = read.table(paste0("simulations/",folder_name,
                                 header = T)
 
 # Choose one generation
-generation = 65
+generation = max(summ_01$gen)-1
 
 parents = df_real[df_real$gen == generation,]
 
@@ -173,7 +198,7 @@ real_progeny = real_progeny %>%
     mutate(sire_dam_code = dense_rank(sire_dam))
 
 real_progeny = real_progeny %>% 
-    mutate(sire_code = dense_rank(pick(sire, Froh_genome))) # REPLACE TRAIT
+    mutate(sire_code = dense_rank(pick(sire, Fg))) # REPLACE TRAIT
 
 parents = parents[parents$ID %in% real_progeny$sire | parents$ID %in% real_progeny$dam,]
 
@@ -203,13 +228,13 @@ all_progeny = merge(all_progeny, sire_code, by = "sire")
 all_progeny$sire = as.factor(all_progeny$sire)
 
 g = ggplot(all_progeny, aes(x = sire_code, color = sire)) +
-    geom_point(aes(y = Froh_genome, shape = progeny), size=3) + # REPLACE TRAIT
+    geom_point(aes(y = Fg, shape = progeny), size=3) + # REPLACE TRAIT
     scale_shape_manual(values=c(1, 19))+
     scale_x_continuous(name = "Sire", breaks = sire_code$code, labels = sire_code$sire) +
     labs(title = paste0("Real vs Fake progeny scenario ",scenario)) +
     theme_bw()
     
-ggsave(paste0("plots/",folder_name,"expectation_vs_reality_",scenario,"_Froh",".png"),
+ggsave(paste0("plots/",folder_name,"expectation_vs_reality_",scenario,"_Fg",".png"),
        width = 20, height = 10, units = "cm", device = "png")
 
 # ---- Violin plots of generations ----

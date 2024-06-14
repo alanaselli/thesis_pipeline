@@ -7,7 +7,7 @@ library(cli)
 cli_h1("\nInitiating LD analyses.\n")
 
 pop_names = tools::file_path_sans_ext(list.files(path = "01_genotypes/", 
-                                                 pattern = "*_sample_100.ped"))
+                                                 pattern = ".ped"))
 cli_alert_info("\nPopulations found:")
 for (pop in pop_names) {
   cat("\n",pop)
@@ -32,7 +32,7 @@ for (f in LD_files) {
 
 for (FILE in pop_names) {
   cli_h2(paste0("\nInitiating summarization for population ", FILE, ".\n"))
-  df = read.table(paste0('02_LD/',FILE,".ld"), header = T)
+  df = read.table(paste0(FILE,".ld"), header = T)
   
   # ---- adjacent LD metrics ----
   
@@ -51,7 +51,7 @@ for (FILE in pop_names) {
               median_r2 = round(median(R2),2))
   
   write.csv(adjacent_r2, 
-            paste0('02_LD/',FILE,"_table_01.csv"),
+            paste0(FILE,"_table_01.csv"),
             row.names = F, quote = F)
   
   # ---- autossomic r2 ----
@@ -69,7 +69,7 @@ for (FILE in pop_names) {
         400 < dist & dist <= 500 ~ '400-500',
         500 < dist & dist <= 1000 ~ '500-1000'
       )) %>% 
-      filter(distance_kb!='NA') %>% 
+      filter(!is.na(distance_kb)) %>% 
       select(distance_kb, R2) %>% 
       group_by(distance_kb) %>% 
       summarise(N = n(),
@@ -82,7 +82,7 @@ for (FILE in pop_names) {
       arrange(distance_kb)
     
     write.csv(autossomic_r2, 
-              paste0('02_LD/',FILE,'_chr',chromosome,".csv"),
+              paste0(FILE,'_chr',chromosome,".csv"),
               row.names = F, quote = F)
   }
   
@@ -100,7 +100,7 @@ for (FILE in pop_names) {
       400 < dist & dist <= 500 ~ '400-500',
       500 < dist & dist <= 1000 ~ '500-1000'
     )) %>% 
-    filter(distance_kb!='NA') %>% 
+    filter(!is.na(distance_kb)) %>% 
     select(distance_kb, R2) %>% 
     group_by(distance_kb) %>% 
     summarise(N = n(),
@@ -113,7 +113,7 @@ for (FILE in pop_names) {
     arrange(distance_kb)
   
   write.csv(autossomic_r2, 
-            paste0('02_LD/',FILE,'_all_chr.csv'),
+            paste0(FILE,'_all_chr.csv'),
             row.names = F, quote = F)
   
   
@@ -124,6 +124,7 @@ for (FILE in pop_names) {
     dfr = df %>% 
       filter(CHR_A==CHR) %>% 
       dplyr::mutate(dist = (BP_B-BP_A)/1000) %>% 
+      filter(dist <= 10000) %>% 
       select(dist, R2)
     
     # group distances into 10 kb intervals
@@ -133,8 +134,8 @@ for (FILE in pop_names) {
                        include.lowest = TRUE)
     
     dfr$distc_b <- cut(dfr$dist,
-                       breaks = seq(from=100,to=1000,by=10),
-                       labels = seq(from=105,to=995,by=10), 
+                       breaks = seq(from=0,to=1000,by=10),
+                       labels = seq(from=5,to=995,by=10), 
                        include.lowest = TRUE)
     
     dfr$distc_c <- cut(dfr$dist,
@@ -176,12 +177,12 @@ for (FILE in pop_names) {
            title = paste0('Linkage Disequilibrium Decay on chromosome ', CHR),
            subtitle = paste0("Population ", FILE)
       )+
-      ylim(0,1)+
+      #ylim(0,1)+
       scale_x_continuous(breaks = seq(0,100,by=10),
                          limits = c(0,100)) +
       theme_bw()
     
-    ggsave(paste0('02_LD/',FILE, "_chr",CHR,"_a.png"), 
+    ggsave(paste0(FILE, "_chr",CHR,"_a.png"), 
            width = 2400, height = 1000, dpi = 320, units = "px")
     
     # plot b
@@ -196,12 +197,12 @@ for (FILE in pop_names) {
            title = paste0('Linkage Disequilibrium Decay on chromosome ', CHR),
            subtitle = paste0("Population ", FILE)
       )+
-      ylim(0,0.2)+
+      #ylim(0,0.2)+
       scale_x_continuous(breaks = seq(100,1000,by=100),
                          limits = c(100,1000)) +
       theme_bw()
     
-    ggsave(paste0('02_LD/',FILE, "_chr",CHR,"_b.png"), 
+    ggsave(paste0(FILE, "_chr",CHR,"_b.png"), 
            width = 2400, height = 1000, dpi = 320, units = "px")
     
     # plot c
@@ -218,11 +219,11 @@ for (FILE in pop_names) {
       )+
       scale_x_continuous(breaks = seq(1000,10000,by=1000), 
                          limits = c(1000,10000)) +
-      scale_y_continuous(breaks = seq(0,0.12,by=0.02),
-                         limits = c(0,0.12)) +
+      #scale_y_continuous(breaks = seq(0,0.12,by=0.02),
+      #                   limits = c(0,0.12)) +
       theme_bw()
     
-    ggsave(paste0('02_LD/',FILE, "_chr",CHR,"_c.png"), 
+    ggsave(paste0(FILE, "_chr",CHR,"_c.png"), 
            width = 2400, height = 1000, dpi = 320, units = "px")
     
     # plot d
@@ -236,12 +237,12 @@ for (FILE in pop_names) {
       labs(x="Distância (kb)",y=expression(LD~(r^{2})),
            title = paste0('Linkage Disequilibrium Decay on chromosome ', CHR),
            subtitle = paste0("Population ", FILE))+
-      ylim(0,0.4)+
+      #ylim(0,0.4)+
       scale_x_continuous(breaks = c(100, seq(1000, 10000, by=1000)), 
                          limits = c(0,10000)) +
       theme_bw()
     
-    ggsave(paste0('02_LD/',FILE, "_chr",CHR,"_d.png"), 
+    ggsave(paste0(FILE, "_chr",CHR,"_d.png"), 
            width = 2400, height = 1000, dpi = 320, units = "px")
     
   }
